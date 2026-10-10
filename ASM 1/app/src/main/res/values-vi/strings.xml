@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ứng dụng Thể dục dụng cụ</string>
+    <string name="title_gymnastics_app">Gymnastics App</string>
+    <string name="default_score">0</string>
+    <string name="label_score">Điểm số</string>
+    <string name="label_max_score">/ 20</string>
+    <string name="label_element_format">Động tác: %1$d / 10</string>
+    <string name="label_zone_format">Phân đoạn: %1$s</string>
+    <string name="zone_basic">Cơ bản (ĐT 1–3, 1đ)</string>
+    <string name="zone_intermediate">Trung bình (ĐT 4–7, 2đ)</string>
+    <string name="zone_advanced">Nâng cao (ĐT 8–10, 3đ)</string>
+    <string name="zone_not_started">Cơ bản (ĐT 1–3)</string>
+
+    <string name="btn_perform">Thực hiện động tác</string>
+    <string name="btn_deduction">Trừ điểm (-2)</string>
+    <string name="btn_reset">Đặt lại bài thi</string>
+
+    <string name="status_ready">Sẵn sàng bắt đầu bài thi</string>
+    <string name="status_in_progress">Đang thực hiện bài thi</string>
+    <string name="status_deduction_taken">Đã bị trừ điểm - Dừng thực hiện</string>
+    <string name="status_complete">Hoàn thành bài thi!</string>
+</resources>
