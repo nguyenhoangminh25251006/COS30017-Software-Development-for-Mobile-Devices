@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">DriveEase Car Rental</string>
+    <string name="balance_format">Credits: %1$d</string>
+    <string name="search_hint">Search car name or model…</string>
+    <string name="sort_label">Sort By</string>
+    <string name="dark_mode_label">Dark Mode</string>
+    <string name="light_mode_label">Light Mode</string>
+    <string name="next_button">Next Car</string>
+    <string name="rent_button">Rent Vehicle</string>
+    <string name="favourites_title">Your Favourites</string>
+    <string name="rented_title">Your Rented Vehicles</string>
+    <string name="kms_format">%1$,d km</string>
+    <string name="year_format">Year: %1$d</string>
+    <string name="rating_format">Rating: %1$.1f / 5.0</string>
+    <string name="cost_format">%1$d credits / day</string>
+    <string name="no_available_cars">No vehicles available currently.</string>
+    <string name="no_search_results">No vehicles match your search query.</string>
+    <string name="no_favourites">No favourite vehicles added yet.</string>
+    <string name="no_rented_cars">No rented vehicles yet.</string>
+    <string name="rental_details_title">Rental Details</string>
+    <string name="duration_label">Rental Duration: %1$d Day(s)</string>
+    <string name="total_cost_format">Total Cost: %1$d Credits</string>
+    <string name="confirm_booking">Confirm &amp; Save Booking</string>
+    <string name="cancel_booking">Cancel Booking</string>
+    <string name="booking_successful">Booking successful! %1$d credits deducted for %2$d day(s).</string>
+    <string name="booking_cancelled">Booking cancelled. No credits deducted.</string>
+    <string name="error_duration">Rental duration must be between 1 and 7 days.</string>
+    <string name="error_max_cost">Total cost (%1$d credits) exceeds individual rental limit of 400 credits.</string>
+    <string name="error_balance">Insufficient credits! Current balance is %1$d credits, but total cost is %2$d credits.</string>
+    <string name="error_already_rented">This car has already been rented.</string>
+    <string name="rental_days_format">%1$d days rental</string>
+</resources>

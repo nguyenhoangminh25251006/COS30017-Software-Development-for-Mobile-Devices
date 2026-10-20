@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="120dp"
+    android:viewportWidth="200"
+    android:viewportHeight="120">
+    <!-- Background Card -->
+    <path
+        android:fillColor="#E8EAF6"
+        android:pathData="M10,10 h180 a10,10 0 0 1 10,10 v80 a10,10 0 0 1 -10,10 h-180 a10,10 0 0 1 -10,-10 v-80 a10,10 0 0 1 10,-10 Z" />
+    <!-- Body -->
+    <path
+        android:fillColor="#1A237E"
+        android:pathData="M28,70 L46,42 Q58,32 85,32 L125,32 Q142,32 153,44 L172,70 Q178,70 178,78 L178,82 Q178,85 172,85 L28,85 Q22,85 22,82 L22,78 Q22,70 28,70 Z" />
+    <!-- Windows -->
+    <path
+        android:fillColor="#C5CAE9"
+        android:pathData="M52,44 L78,37 L102,37 L102,64 L46,64 Z M107,37 L128,37 Q140,37 146,46 L153,64 L107,64 Z" />
+    <!-- Wheels -->
+    <path
+        android:fillColor="#212121"
+        android:pathData="M48,85 A13,13 0 1,0 74,85 A13,13 0 1,0 48,85 Z" />
+    <path
+        android:fillColor="#212121"
+        android:pathData="M126,85 A13,13 0 1,0 152,85 A13,13 0 1,0 126,85 Z" />
+    <path
+        android:fillColor="#90A4AE"
+        android:pathData="M54,85 A7,7 0 1,0 68,85 A7,7 0 1,0 54,85 Z" />
+    <path
+        android:fillColor="#90A4AE"
+        android:pathData="M132,85 A7,7 0 1,0 146,85 A7,7 0 1,0 132,85 Z" />
+    <!-- Headlight -->
+    <path
+        android:fillColor="#FFF59D"
+        android:pathData="M165,70 L176,70 L174,75 L165,75 Z" />
+</vector>

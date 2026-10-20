@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="120dp"
+    android:viewportWidth="200"
+    android:viewportHeight="120">
+    <!-- Background Card -->
+    <path
+        android:fillColor="#E0F2F1"
+        android:pathData="M10,10 h180 a10,10 0 0 1 10,10 v80 a10,10 0 0 1 -10,10 h-180 a10,10 0 0 1 -10,-10 v-80 a10,10 0 0 1 10,-10 Z" />
+    <!-- SUV Body (Taller) -->
+    <path
+        android:fillColor="#00897B"
+        android:pathData="M25,68 L38,36 Q45,26 70,26 L135,26 Q148,26 155,38 L172,68 Q178,68 178,76 L178,81 Q178,85 172,85 L25,85 Q20,85 20,81 L20,76 Q20,68 25,68 Z" />
+    <!-- Windows -->
+    <path
+        android:fillColor="#B2DFDB"
+        android:pathData="M44,38 L72,31 L100,31 L100,62 L40,62 Z M105,31 L134,31 Q144,31 150,42 L156,62 L105,62 Z" />
+    <!-- SUV Wheels -->
+    <path
+        android:fillColor="#212121"
+        android:pathData="M46,85 A14,14 0 1,0 74,85 A14,14 0 1,0 46,85 Z" />
+    <path
+        android:fillColor="#212121"
+        android:pathData="M126,85 A14,14 0 1,0 154,85 A14,14 0 1,0 126,85 Z" />
+    <path
+        android:fillColor="#B0BEC5"
+        android:pathData="M53,85 A7,7 0 1,0 67,85 A7,7 0 1,0 53,85 Z" />
+    <path
+        android:fillColor="#B0BEC5"
+        android:pathData="M133,85 A7,7 0 1,0 147,85 A7,7 0 1,0 133,85 Z" />
+    <!-- Headlight -->
+    <path
+        android:fillColor="#FFF59D"
+        android:pathData="M164,68 L175,68 L173,74 L164,74 Z" />
+</vector>
