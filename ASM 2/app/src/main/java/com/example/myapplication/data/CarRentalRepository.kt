@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class CarRentalRepository {
 
-    // 5 distinct sample cars with realistic, internally consistent data
+    // 5 distinct sample cars with realistic, internally consistent data and high-res images
     val sampleCars = listOf(
         Car(
             id = "car_001",
@@ -27,7 +27,7 @@ class CarRentalRepository {
             rating = 4.8f,
             kmsDriven = 24500,
             dailyCost = 50,
-            imageResId = R.drawable.car_toyota_camry
+            imageResId = R.drawable.img_toyota_camry
         ),
         Car(
             id = "car_002",
@@ -37,7 +37,7 @@ class CarRentalRepository {
             rating = 4.9f,
             kmsDriven = 12000,
             dailyCost = 75,
-            imageResId = R.drawable.car_tesla_model3
+            imageResId = R.drawable.img_tesla_model3
         ),
         Car(
             id = "car_003",
@@ -47,7 +47,7 @@ class CarRentalRepository {
             rating = 4.5f,
             kmsDriven = 38000,
             dailyCost = 45,
-            imageResId = R.drawable.car_hyundai_tucson
+            imageResId = R.drawable.img_hyundai_tucson
         ),
         Car(
             id = "car_004",
@@ -57,7 +57,7 @@ class CarRentalRepository {
             rating = 4.7f,
             kmsDriven = 8500,
             dailyCost = 90,
-            imageResId = R.drawable.car_bmw_3series
+            imageResId = R.drawable.img_bmw_3series
         ),
         Car(
             id = "car_005",
@@ -67,7 +67,7 @@ class CarRentalRepository {
             rating = 4.3f,
             kmsDriven = 52000,
             dailyCost = 35,
-            imageResId = R.drawable.car_honda_civic
+            imageResId = R.drawable.img_honda_civic
         )
     )
 
@@ -90,6 +90,29 @@ class CarRentalRepository {
 
     private val _currentCarIndex = MutableStateFlow(0)
     val currentCarIndex: StateFlow<Int> = _currentCarIndex.asStateFlow()
+
+    private val _availableCars = MutableStateFlow<List<Car>>(emptyList())
+    val availableCars: StateFlow<List<Car>> = _availableCars.asStateFlow()
+
+    private val _currentCar = MutableStateFlow<Car?>(null)
+    val currentCar: StateFlow<Car?> = _currentCar.asStateFlow()
+
+    init {
+        updateComputedCars()
+    }
+
+    private fun updateComputedCars() {
+        val available = getAvailableCars()
+        _availableCars.value = available
+        if (available.isEmpty()) {
+            _currentCarIndex.value = 0
+            _currentCar.value = null
+        } else {
+            val validIndex = _currentCarIndex.value.coerceIn(0, available.size - 1)
+            _currentCarIndex.value = validIndex
+            _currentCar.value = available[validIndex]
+        }
+    }
 
     /**
      * Gets the list of available cars (excluding rented cars), filtered by search query and sorted.
@@ -121,10 +144,12 @@ class CarRentalRepository {
         val available = getAvailableCars()
         if (available.isEmpty()) {
             _currentCarIndex.value = 0
+            _currentCar.value = null
             return
         }
         val nextIndex = (_currentCarIndex.value + 1) % available.size
         _currentCarIndex.value = nextIndex
+        _currentCar.value = available[nextIndex]
     }
 
     /**
@@ -133,6 +158,7 @@ class CarRentalRepository {
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
         _currentCarIndex.value = 0
+        updateComputedCars()
     }
 
     /**
@@ -141,6 +167,7 @@ class CarRentalRepository {
     fun setSortOption(option: SortOption) {
         _sortOption.value = option
         _currentCarIndex.value = 0
+        updateComputedCars()
     }
 
     /**
@@ -190,6 +217,7 @@ class CarRentalRepository {
             val booking = RentalBooking(car, rentalDays, totalCost)
             _rentedBookings.value = _rentedBookings.value + booking
             _currentCarIndex.value = 0 // Reset index for remaining available cars
+            updateComputedCars()
         }
         return validation
     }
@@ -202,6 +230,7 @@ class CarRentalRepository {
         val booking = _rentedBookings.value.find { it.car.id == carId } ?: return false
         _rentedBookings.value = _rentedBookings.value.filterNot { it.car.id == carId }
         _creditBalance.value += booking.totalCost
+        updateComputedCars()
         return true
     }
 
@@ -215,5 +244,6 @@ class CarRentalRepository {
         _searchQuery.value = ""
         _sortOption.value = SortOption.RATING_DESC
         _currentCarIndex.value = 0
+        updateComputedCars()
     }
 }

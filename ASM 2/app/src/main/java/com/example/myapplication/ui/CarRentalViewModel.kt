@@ -23,6 +23,8 @@ class CarRentalViewModel(
     val searchQuery: StateFlow<String> = repository.searchQuery
     val sortOption: StateFlow<SortOption> = repository.sortOption
     val currentCarIndex: StateFlow<Int> = repository.currentCarIndex
+    val availableCars: StateFlow<List<Car>> = repository.availableCars
+    val currentCar: StateFlow<Car?> = repository.currentCar
 
     private val _isDarkMode = MutableStateFlow(false)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
