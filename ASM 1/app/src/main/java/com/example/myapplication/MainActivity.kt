@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         setupClickListeners()
         updateUI()
     }
-
+//
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt(KEY_SCORE, score)
