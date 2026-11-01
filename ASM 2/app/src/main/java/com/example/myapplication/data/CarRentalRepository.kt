@@ -79,6 +79,9 @@ class CarRentalRepository {
     private val _favourites = MutableStateFlow<Set<String>>(emptySet())
     val favourites: StateFlow<Set<String>> = _favourites.asStateFlow()
 
+    private val _favouriteCars = MutableStateFlow<List<Car>>(emptyList())
+    val favouriteCars: StateFlow<List<Car>> = _favouriteCars.asStateFlow()
+
     private val _rentedBookings = MutableStateFlow<List<RentalBooking>>(emptyList())
     val rentedBookings: StateFlow<List<RentalBooking>> = _rentedBookings.asStateFlow()
 
@@ -99,6 +102,7 @@ class CarRentalRepository {
 
     init {
         updateComputedCars()
+        updateFavouriteCars()
     }
 
     private fun updateComputedCars() {
@@ -112,6 +116,11 @@ class CarRentalRepository {
             _currentCarIndex.value = validIndex
             _currentCar.value = available[validIndex]
         }
+    }
+
+    private fun updateFavouriteCars() {
+        val favSet = _favourites.value
+        _favouriteCars.value = _canonicalCars.filter { it.id in favSet }
     }
 
     /**
@@ -181,6 +190,7 @@ class CarRentalRepository {
             current.add(carId)
         }
         _favourites.value = current
+        updateFavouriteCars()
     }
 
     /**
@@ -245,5 +255,6 @@ class CarRentalRepository {
         _sortOption.value = SortOption.RATING_DESC
         _currentCarIndex.value = 0
         updateComputedCars()
+        updateFavouriteCars()
     }
 }

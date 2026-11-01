@@ -19,6 +19,7 @@ class CarRentalViewModel(
 
     val creditBalance: StateFlow<Int> = repository.creditBalance
     val favourites: StateFlow<Set<String>> = repository.favourites
+    val favouriteCars: StateFlow<List<Car>> = repository.favouriteCars
     val rentedBookings: StateFlow<List<RentalBooking>> = repository.rentedBookings
     val searchQuery: StateFlow<String> = repository.searchQuery
     val sortOption: StateFlow<SortOption> = repository.sortOption
