@@ -14,8 +14,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.myapplication.ui.theme.AccentAmber
 import java.util.Locale
 
 /**
@@ -27,8 +30,8 @@ fun StarRatingBar(
     rating: Float,
     modifier: Modifier = Modifier,
     maxStars: Int = 5,
-    starSize: Dp = 22.dp,
-    starColor: Color = Color(0xFFFFB300), // Gold / Amber
+    starSize: Dp = 18.dp,
+    starColor: Color = AccentAmber,
     showText: Boolean = true
 ) {
     Row(
@@ -53,8 +56,11 @@ fun StarRatingBar(
         if (showText) {
             Text(
                 text = String.format(Locale.US, "%.1f", rating),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(start = 6.dp)
             )
         }

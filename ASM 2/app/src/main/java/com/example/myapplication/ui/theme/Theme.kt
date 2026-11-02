@@ -7,37 +7,41 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
 private val DarkColorScheme = darkColorScheme(
-    primary = CarPrimaryDark,
-    onPrimary = CarOnPrimaryDark,
-    primaryContainer = CarPrimaryContainerDark,
-    onPrimaryContainer = CarOnPrimaryContainerDark,
-    secondary = CarSecondaryDark,
-    onSecondary = CarOnSecondaryDark,
-    secondaryContainer = CarSecondaryContainerDark,
-    onSecondaryContainer = CarOnSecondaryContainerDark,
-    background = CarBackgroundDark,
-    onBackground = CarOnBackgroundDark,
-    surface = CarSurfaceDark,
-    onSurface = CarOnSurfaceDark,
-    surfaceVariant = CarSurfaceVariantDark,
-    onSurfaceVariant = CarOnSurfaceVariantDark
+    primary = BrandPrimaryDark,
+    onPrimary = BrandOnPrimaryDark,
+    primaryContainer = BrandPrimaryContainerDark,
+    onPrimaryContainer = BrandOnPrimaryContainerDark,
+    secondary = BrandSecondaryDark,
+    onSecondary = BrandOnSecondaryDark,
+    secondaryContainer = BrandSecondaryContainerDark,
+    onSecondaryContainer = BrandOnSecondaryContainerDark,
+    background = BrandBackgroundDark,
+    onBackground = BrandOnBackgroundDark,
+    surface = BrandSurfaceDark,
+    onSurface = BrandOnSurfaceDark,
+    surfaceVariant = BrandSurfaceVariantDark,
+    onSurfaceVariant = BrandOnSurfaceVariantDark,
+    outline = BrandOutlineDark,
+    outlineVariant = BrandSurfaceVariantDark
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = CarPrimaryLight,
-    onPrimary = CarOnPrimaryLight,
-    primaryContainer = CarPrimaryContainerLight,
-    onPrimaryContainer = CarOnPrimaryContainerLight,
-    secondary = CarSecondaryLight,
-    onSecondary = CarOnSecondaryLight,
-    secondaryContainer = CarSecondaryContainerLight,
-    onSecondaryContainer = CarOnSecondaryContainerLight,
-    background = CarBackgroundLight,
-    onBackground = CarOnBackgroundLight,
-    surface = CarSurfaceLight,
-    onSurface = CarOnSurfaceLight,
-    surfaceVariant = CarSurfaceVariantLight,
-    onSurfaceVariant = CarOnSurfaceVariantLight
+    primary = BrandPrimaryLight,
+    onPrimary = BrandOnPrimaryLight,
+    primaryContainer = BrandPrimaryContainerLight,
+    onPrimaryContainer = BrandOnPrimaryContainerLight,
+    secondary = BrandSecondaryLight,
+    onSecondary = BrandOnSecondaryLight,
+    secondaryContainer = BrandSecondaryContainerLight,
+    onSecondaryContainer = BrandOnSecondaryContainerLight,
+    background = BrandBackgroundLight,
+    onBackground = BrandOnBackgroundLight,
+    surface = BrandSurfaceLight,
+    onSurface = BrandOnSurfaceLight,
+    surfaceVariant = BrandSurfaceVariantLight,
+    onSurfaceVariant = BrandOnSurfaceVariantLight,
+    outline = BrandOutlineLight,
+    outlineVariant = BrandSurfaceVariantLight
 )
 
 @Composable

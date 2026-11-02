@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,12 +29,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,18 +63,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.myapplication.domain.CarRentalDomain
 import com.example.myapplication.domain.ValidationResult
 import com.example.myapplication.model.Car
 import com.example.myapplication.ui.components.StarRatingBar
+import com.example.myapplication.ui.theme.AccentError
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import java.util.Locale
 
 /**
  * Activity 2: Rental Details & Booking Confirmation.
  * Receives selected car as Parcelable via explicit Intent.
- * Uses native [Slider] for duration selection, calculates total cost dynamically,
- * validates rules, and returns booking result via Activity Result API.
+ * Features native Slider, dynamic cost calculation, strict credit rule validation,
+ * and seamless return of booking result via Activity Result API.
  */
 class RentalActivity : ComponentActivity() {
 
@@ -155,21 +160,27 @@ fun RentalScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.rental_details_title),
-                        fontWeight = FontWeight.Bold
+                        text = "Rental Details",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            letterSpacing = (-0.3).sp
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         }
@@ -178,26 +189,30 @@ fun RentalScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Selected Vehicle Summary Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(190.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Image(
                             painter = painterResource(id = car.imageResId),
@@ -214,51 +229,65 @@ fun RentalScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = car.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Column {
+                            Text(
+                                text = car.name,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = car.model,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
                         ) {
                             Text(
                                 text = "${car.year}",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
                     }
 
-                    Text(
-                        text = car.model,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     StarRatingBar(rating = car.rating)
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = stringResource(R.string.kms_format, car.kmsDriven),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = stringResource(R.string.cost_format, car.dailyCost),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
+                            text = "${car.dailyCost} credits / day",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -267,10 +296,15 @@ fun RentalScreen(
             // Duration & Pricing Card (with Native Slider Widget)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                )
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -280,24 +314,29 @@ fun RentalScreen(
                     ) {
                         Text(
                             text = "Rental Duration",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.primary
                         ) {
                             Text(
-                                text = "$rentalDays Day(s)",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
+                                text = "$rentalDays ${if (rentalDays == 1) "day" else "days"}",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                ),
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Native Slider widget for selecting rental duration from 1 to 7 days
                     Slider(
@@ -311,7 +350,8 @@ fun RentalScreen(
                         modifier = Modifier.fillMaxWidth(),
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     )
 
@@ -320,18 +360,20 @@ fun RentalScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "1 Day (Min)",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = "1 Day",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "7 Days (Max)",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = "7 Days",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
                     Spacer(modifier = Modifier.height(18.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Dynamic Cost & Balance Overview
                     Row(
@@ -341,32 +383,39 @@ fun RentalScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Current Balance:",
-                                style = MaterialTheme.typography.labelMedium,
+                                text = "Current Balance",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = stringResource(R.string.balance_format, creditBalance),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                text = "$creditBalance credits",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 16.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "Total Rental Cost:",
-                                style = MaterialTheme.typography.labelMedium,
+                                text = "Total Cost",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = stringResource(R.string.total_cost_format, totalCost),
-                                style = MaterialTheme.typography.headlineSmall,
+                                text = "$totalCost credits",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 22.sp
+                                ),
                                 color = if (totalCost > 400 || totalCost > creditBalance) {
-                                    Color(0xFFEF4444)
+                                    AccentError
                                 } else {
-                                    MaterialTheme.colorScheme.primary
-                                },
-                                fontWeight = FontWeight.ExtraBold
+                                    MaterialTheme.colorScheme.onSurface
+                                }
                             )
                         }
                     }
@@ -377,26 +426,33 @@ fun RentalScreen(
             errorMessage?.let { error ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = AccentError.copy(alpha = 0.5f)
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Warning,
                             contentDescription = "Error",
-                            tint = MaterialTheme.colorScheme.error
+                            tint = AccentError,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = error,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp
+                            )
                         )
                     }
                 }
@@ -407,21 +463,29 @@ fun RentalScreen(
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedButton(
                     onClick = onCancel,
                     modifier = Modifier
                         .weight(1f)
-                        .height(50.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Cancel,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 4.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(stringResource(R.string.cancel_booking))
+                ) {
+                    Text(
+                        stringResource(R.string.cancel_booking),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                    )
                 }
 
                 Button(
@@ -443,20 +507,24 @@ fun RentalScreen(
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 4.dp)
+                    Text(
+                        stringResource(R.string.confirm_booking),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     )
-                    Text(stringResource(R.string.confirm_booking), fontWeight = FontWeight.Bold)
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
