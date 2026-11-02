@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class CarRentalRepository {
 
-    // 5 distinct sample cars with realistic, internally consistent data and high-res images
+    // 5 distinct sample cars with realistic, internally consistent data, detailed specs, and high-res images
     val sampleCars = listOf(
         Car(
             id = "car_001",
@@ -27,7 +27,14 @@ class CarRentalRepository {
             rating = 4.8f,
             kmsDriven = 24500,
             dailyCost = 50,
-            imageResId = R.drawable.img_toyota_camry
+            imageResId = R.drawable.img_toyota_camry,
+            engine = "2.5L 4-Cylinder",
+            seats = 5,
+            color = "Celestial Silver",
+            mileage = "16.55 kmpl",
+            transmission = "8-speed automatic",
+            fuelType = "Gasoline",
+            description = "A reliable and fuel-efficient sedan designed for comfortable daily driving. Offers a smooth ride, responsive handling, driver assistance safety features, and a spacious quiet cabin perfect for city and highway trips."
         ),
         Car(
             id = "car_002",
@@ -37,7 +44,14 @@ class CarRentalRepository {
             rating = 4.9f,
             kmsDriven = 12000,
             dailyCost = 75,
-            imageResId = R.drawable.img_tesla_model3
+            imageResId = R.drawable.img_tesla_model3,
+            engine = "Dual AC Motors",
+            seats = 5,
+            color = "Pearl Red Metallic",
+            mileage = "576 km range",
+            transmission = "Single-speed fixed gear",
+            fuelType = "Electric (BEV)",
+            description = "High-performance all-electric luxury sedan featuring instant torque, Autopilot highway assist, minimalist glass-roof interior, and ultra-low running costs with zero emissions."
         ),
         Car(
             id = "car_003",
@@ -47,7 +61,14 @@ class CarRentalRepository {
             rating = 4.5f,
             kmsDriven = 38000,
             dailyCost = 45,
-            imageResId = R.drawable.img_hyundai_tucson
+            imageResId = R.drawable.img_hyundai_tucson,
+            engine = "2.5L Smartstream",
+            seats = 5,
+            color = "Deep Navy Metallic",
+            mileage = "13.80 kmpl",
+            transmission = "8-speed automatic",
+            fuelType = "Gasoline",
+            description = "A versatile compact SUV with bold parametric styling, generous rear cargo volume, high ground clearance, and an intuitive infotainment suite built for family weekend road trips."
         ),
         Car(
             id = "car_004",
@@ -57,7 +78,14 @@ class CarRentalRepository {
             rating = 4.7f,
             kmsDriven = 8500,
             dailyCost = 90,
-            imageResId = R.drawable.img_bmw_3series
+            imageResId = R.drawable.img_bmw_3series,
+            engine = "2.0L TwinPower Turbo",
+            seats = 5,
+            color = "Black Sapphire Metallic",
+            mileage = "14.20 kmpl",
+            transmission = "8-speed Steptronic Sport",
+            fuelType = "Premium Gasoline",
+            description = "The benchmark sports luxury sedan with intelligent xDrive all-wheel drive, razor-sharp steering dynamics, premium Vernasca leather seats, and cutting-edge curved display."
         ),
         Car(
             id = "car_005",
@@ -67,7 +95,14 @@ class CarRentalRepository {
             rating = 4.3f,
             kmsDriven = 52000,
             dailyCost = 35,
-            imageResId = R.drawable.img_honda_civic
+            imageResId = R.drawable.img_honda_civic,
+            engine = "1.5L Turbocharged",
+            seats = 5,
+            color = "Rallye Blue",
+            mileage = "17.80 kmpl",
+            transmission = "CVT Automatic",
+            fuelType = "Gasoline",
+            description = "Sporty, agile, and supremely economical compact hatchback offering exceptional fuel economy, Honda Sensing safety tech, and an ergonomic cockpit tailored for effortless urban navigation."
         )
     )
 
@@ -147,7 +182,7 @@ class CarRentalRepository {
     }
 
     /**
-     * Advances to the next available car in the list.
+     * Advances to the next available car in the list (cycling).
      */
     fun nextCar() {
         val available = getAvailableCars()
@@ -159,6 +194,21 @@ class CarRentalRepository {
         val nextIndex = (_currentCarIndex.value + 1) % available.size
         _currentCarIndex.value = nextIndex
         _currentCar.value = available[nextIndex]
+    }
+
+    /**
+     * Navigates back to the previous available car in the list (cycling).
+     */
+    fun previousCar() {
+        val available = getAvailableCars()
+        if (available.isEmpty()) {
+            _currentCarIndex.value = 0
+            _currentCar.value = null
+            return
+        }
+        val prevIndex = if (_currentCarIndex.value - 1 < 0) available.size - 1 else _currentCarIndex.value - 1
+        _currentCarIndex.value = prevIndex
+        _currentCar.value = available[prevIndex]
     }
 
     /**

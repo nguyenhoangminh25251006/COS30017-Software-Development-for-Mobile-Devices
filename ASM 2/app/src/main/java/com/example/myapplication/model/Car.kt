@@ -17,7 +17,14 @@ data class Car(
     val rating: Float, // Rating from 1.0 to 5.0
     val kmsDriven: Int,
     val dailyCost: Int, // Daily rental cost in credits
-    val imageResId: Int
+    val imageResId: Int,
+    val engine: String = "V-4 engine",
+    val seats: Int = 5,
+    val color: String = "Metallic",
+    val mileage: String = "16.5 kmpl",
+    val transmission: String = "8-speed automatic",
+    val fuelType: String = "Gasoline",
+    val description: String = "A reliable and fuel-efficient vehicle designed for comfortable daily driving and city travel, offering smooth handling and modern safety features."
 ) : Parcelable {
     override fun describeContents(): Int = 0
 
@@ -30,6 +37,13 @@ data class Car(
         dest.writeInt(kmsDriven)
         dest.writeInt(dailyCost)
         dest.writeInt(imageResId)
+        dest.writeString(engine)
+        dest.writeInt(seats)
+        dest.writeString(color)
+        dest.writeString(mileage)
+        dest.writeString(transmission)
+        dest.writeString(fuelType)
+        dest.writeString(description)
     }
 
     companion object CREATOR : Parcelable.Creator<Car> {
@@ -42,7 +56,14 @@ data class Car(
                 rating = parcel.readFloat(),
                 kmsDriven = parcel.readInt(),
                 dailyCost = parcel.readInt(),
-                imageResId = parcel.readInt()
+                imageResId = parcel.readInt(),
+                engine = parcel.readString() ?: "V-4 engine",
+                seats = parcel.readInt(),
+                color = parcel.readString() ?: "Metallic",
+                mileage = parcel.readString() ?: "16.5 kmpl",
+                transmission = parcel.readString() ?: "8-speed automatic",
+                fuelType = parcel.readString() ?: "Gasoline",
+                description = parcel.readString() ?: ""
             )
         }
 

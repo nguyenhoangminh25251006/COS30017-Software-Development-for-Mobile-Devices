@@ -23,7 +23,7 @@ class CarRentalUITest {
     @Test
     fun testAppLaunch_DisplaysHeaderAndVehicleCard() {
         // App title is displayed
-        composeTestRule.onNodeWithText("Car Catalogue").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Car Rental").assertIsDisplayed()
 
         // Initial credit balance is displayed (500)
         composeTestRule.onNodeWithText("Credits: 500").assertIsDisplayed()

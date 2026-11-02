@@ -57,6 +57,10 @@ class CarRentalViewModel(
         repository.nextCar()
     }
 
+    fun previousCar() {
+        repository.previousCar()
+    }
+
     fun getAvailableCars(): List<Car> {
         return repository.getAvailableCars()
     }
