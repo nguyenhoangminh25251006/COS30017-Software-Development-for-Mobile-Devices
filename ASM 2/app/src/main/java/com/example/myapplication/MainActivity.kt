@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,6 +67,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -165,6 +170,7 @@ fun CatalogueScreen(
     val rentedBookings by viewModel.rentedBookings.collectAsState()
     val availableCars by viewModel.availableCars.collectAsState()
     val favouriteCars by viewModel.favouriteCars.collectAsState()
+    var sortResetKey by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -308,7 +314,10 @@ fun CatalogueScreen(
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                        IconButton(onClick = {
+                            viewModel.setSearchQuery("")
+                            sortResetKey++
+                        }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
                                 contentDescription = "Clear search",
@@ -346,7 +355,10 @@ fun CatalogueScreen(
 
                 FilterChip(
                     selected = sortOption == SortOption.RATING_DESC,
-                    onClick = { viewModel.setSortOption(SortOption.RATING_DESC) },
+                    onClick = {
+                        viewModel.setSortOption(SortOption.RATING_DESC)
+                        sortResetKey++
+                    },
                     label = {
                         Text(
                             "Rating",
@@ -370,7 +382,10 @@ fun CatalogueScreen(
 
                 FilterChip(
                     selected = sortOption == SortOption.YEAR_DESC,
-                    onClick = { viewModel.setSortOption(SortOption.YEAR_DESC) },
+                    onClick = {
+                        viewModel.setSortOption(SortOption.YEAR_DESC)
+                        sortResetKey++
+                    },
                     label = {
                         Text(
                             "Newest",
@@ -394,7 +409,10 @@ fun CatalogueScreen(
 
                 FilterChip(
                     selected = sortOption == SortOption.COST_ASC,
-                    onClick = { viewModel.setSortOption(SortOption.COST_ASC) },
+                    onClick = {
+                        viewModel.setSortOption(SortOption.COST_ASC)
+                        sortResetKey++
+                    },
                     label = {
                         Text(
                             "Lowest Price",
@@ -472,7 +490,10 @@ fun CatalogueScreen(
                             if (searchQuery.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Button(
-                                    onClick = { viewModel.setSearchQuery("") },
+                                    onClick = {
+                                        viewModel.setSearchQuery("")
+                                        sortResetKey++
+                                    },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary,
@@ -485,19 +506,26 @@ fun CatalogueScreen(
                         }
                     }
                 } else {
-                    // Horizontal swipeable vehicle cards with peek
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(end = 16.dp)
-                    ) {
-                        items(availableCars, key = { it.id }) { car ->
-                            PopularCarCard(
-                                car = car,
-                                isFavourite = favourites.contains(car.id),
-                                isDarkMode = isDarkMode,
-                                onToggleFavourite = { viewModel.toggleFavourite(car.id) },
-                                onRentClick = { onRentClick(car) }
-                            )
+                    // Horizontal swipeable vehicle cards with peek - resets cleanly to item 0 on sort/search
+                    key(sortOption, sortResetKey) {
+                        val popularListState = rememberLazyListState()
+                        LaunchedEffect(searchQuery) {
+                            popularListState.scrollToItem(0)
+                        }
+                        LazyRow(
+                            state = popularListState,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(end = 16.dp)
+                        ) {
+                            items(availableCars, key = { it.id }) { car ->
+                                PopularCarCard(
+                                    car = car,
+                                    isFavourite = favourites.contains(car.id),
+                                    isDarkMode = isDarkMode,
+                                    onToggleFavourite = { viewModel.toggleFavourite(car.id) },
+                                    onRentClick = { onRentClick(car) }
+                                )
+                            }
                         }
                     }
                 }
