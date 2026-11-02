@@ -2,7 +2,9 @@ package com.example.myapplication
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -26,27 +28,16 @@ class CarRentalUITest {
         composeTestRule.onNodeWithText("Car Rental").assertIsDisplayed()
 
         // Initial credit balance is displayed (500)
-        composeTestRule.onNodeWithText("Credits: 500").assertIsDisplayed()
+        composeTestRule.onNodeWithText("500").assertIsDisplayed()
 
-        // Toyota Camry (highest rated) is displayed initially
-        composeTestRule.onNodeWithText("Toyota Camry").assertIsDisplayed()
-        composeTestRule.onNodeWithText("50 credits / day").assertIsDisplayed()
+        // Popular section is displayed
+        composeTestRule.onNodeWithText("Popular").assertIsDisplayed()
 
-        // Next and Rent buttons exist
-        composeTestRule.onNodeWithText("Next Car").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Rent Vehicle").assertIsDisplayed()
-    }
-
-    @Test
-    fun testNextButton_NavigatesToNextVehicle() {
-        // Initial car is Toyota Camry
+        // Available car (e.g., Toyota Camry) is displayed
         composeTestRule.onNodeWithText("Toyota Camry").assertIsDisplayed()
 
-        // Click Next
-        composeTestRule.onNodeWithText("Next Car").performClick()
-
-        // Advances to next car (Tesla Model 3 or BMW 3 Series depending on sort)
-        composeTestRule.onNodeWithText("Toyota Camry").assertDoesNotExist()
+        // Rent button exists
+        composeTestRule.onAllNodesWithText("Rent").onFirst().assertIsDisplayed()
     }
 
     @Test
@@ -64,10 +55,10 @@ class CarRentalUITest {
 
     @Test
     fun testFavouriteToggle_AddsCarToFavouritesSection() {
-        // Click heart favourite button
-        composeTestRule.onNodeWithContentDescription("Favourite").performClick()
+        // Click first heart favourite button
+        composeTestRule.onAllNodesWithContentDescription("Favourite").onFirst().performClick()
 
-        // Favourites section displays Toyota Camry
-        composeTestRule.onNodeWithText("Your Favourites").assertIsDisplayed()
+        // Favourites section displays updated count
+        composeTestRule.onNodeWithText("Favourites (1)").assertIsDisplayed()
     }
 }
