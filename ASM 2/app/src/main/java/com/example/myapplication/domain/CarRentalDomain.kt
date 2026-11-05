@@ -1,5 +1,6 @@
 package com.example.myapplication.domain
 
+import com.example.myapplication.R
 import com.example.myapplication.model.Car
 import com.example.myapplication.model.SortOption
 
@@ -8,7 +9,11 @@ import com.example.myapplication.model.SortOption
  */
 sealed class ValidationResult {
     object Success : ValidationResult()
-    data class Error(val message: String) : ValidationResult()
+    data class Error(
+        val message: String,
+        val messageResId: Int = 0,
+        val formatArgs: List<Any> = emptyList()
+    ) : ValidationResult()
 }
 
 /**
@@ -43,17 +48,31 @@ object CarRentalDomain {
         isAlreadyRented: Boolean = false
     ): ValidationResult {
         if (isAlreadyRented) {
-            return ValidationResult.Error("This vehicle has already been rented.")
+            return ValidationResult.Error(
+                message = "This vehicle has already been rented.",
+                messageResId = R.string.error_already_rented
+            )
         }
         if (rentalDays < MIN_RENTAL_DAYS || rentalDays > MAX_RENTAL_DAYS) {
-            return ValidationResult.Error("Rental duration must be between $MIN_RENTAL_DAYS and $MAX_RENTAL_DAYS days.")
+            return ValidationResult.Error(
+                message = "Rental duration must be between $MIN_RENTAL_DAYS and $MAX_RENTAL_DAYS days.",
+                messageResId = R.string.error_duration
+            )
         }
         val totalCost = calculateTotalCost(car.dailyCost, rentalDays)
         if (totalCost > MAX_RENTAL_COST) {
-            return ValidationResult.Error("Individual rental cost ($totalCost credits) exceeds the $MAX_RENTAL_COST credit limit.")
+            return ValidationResult.Error(
+                message = "Individual rental cost ($totalCost credits) exceeds the $MAX_RENTAL_COST credit limit.",
+                messageResId = R.string.error_max_cost,
+                formatArgs = listOf(totalCost)
+            )
         }
         if (totalCost > currentBalance) {
-            return ValidationResult.Error("Insufficient credit balance ($currentBalance credits available, $totalCost credits required).")
+            return ValidationResult.Error(
+                message = "Insufficient credit balance ($currentBalance credits available, $totalCost credits required).",
+                messageResId = R.string.error_balance,
+                formatArgs = listOf(currentBalance, totalCost)
+            )
         }
         return ValidationResult.Success
     }

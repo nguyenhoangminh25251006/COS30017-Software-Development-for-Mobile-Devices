@@ -3,12 +3,10 @@ package com.example.myapplication.model
 import android.os.Build
 import android.os.Parcel
 import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
 
 /**
  * Data class representing an active or completed car rental booking.
  */
-@Parcelize
 data class RentalBooking(
     val car: Car,
     val rentalDays: Int,

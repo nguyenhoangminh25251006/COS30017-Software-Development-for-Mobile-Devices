@@ -1,6 +1,5 @@
 package com.example.myapplication
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -12,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,12 +32,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
@@ -47,6 +49,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -69,13 +73,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -84,15 +92,16 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.model.Car
 import com.example.myapplication.model.SortOption
 import com.example.myapplication.ui.CarRentalViewModel
+import com.example.myapplication.ui.components.AppLocaleProvider
 import com.example.myapplication.ui.components.StarRatingBar
 import com.example.myapplication.ui.theme.AccentFavorite
 import com.example.myapplication.ui.theme.MyApplicationTheme
-import java.util.Locale
 
 /**
  * Activity 1: Car Rental Dashboard.
  * Clean, modern editorial automotive UI with horizontal swipeable vehicle cards,
- * real-time search & sorting, favourites tracking, and active bookings management.
+ * real-time search & sorting, favourites tracking, active bookings management,
+ * and bilingual language switching (English / Vietnamese).
  */
 class MainActivity : ComponentActivity() {
 
@@ -104,11 +113,21 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isDarkMode by viewModel.isDarkMode.collectAsState()
+            val appLanguage by viewModel.appLanguage.collectAsState()
             val userMessage by viewModel.userMessage.collectAsState()
+            val localizedToast by viewModel.localizedToast.collectAsState()
 
-            // Toast feedback for user actions
-            LaunchedEffect(userMessage) {
-                userMessage?.let {
+            // Toast feedback for user actions supporting localization
+            LaunchedEffect(userMessage, localizedToast) {
+                val text = localizedToast?.let { toast ->
+                    if (toast.formatArgs.isNotEmpty()) {
+                        getString(toast.resId, *toast.formatArgs.toTypedArray())
+                    } else {
+                        getString(toast.resId)
+                    }
+                } ?: userMessage
+
+                text?.let {
                     Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show()
                     viewModel.clearUserMessage()
                 }
@@ -130,26 +149,30 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            MyApplicationTheme(darkTheme = isDarkMode) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    CatalogueScreen(
-                        viewModel = viewModel,
-                        isDarkMode = isDarkMode,
-                        onRentClick = { car ->
-                            val intent = Intent(this, RentalActivity::class.java).apply {
-                                putExtra(RentalActivity.EXTRA_CAR, car)
-                                putExtra(
-                                    RentalActivity.EXTRA_CREDIT_BALANCE,
-                                    viewModel.creditBalance.value
-                                )
-                                putExtra(RentalActivity.EXTRA_IS_DARK_MODE, isDarkMode)
+            AppLocaleProvider(language = appLanguage) {
+                MyApplicationTheme(darkTheme = isDarkMode) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        CatalogueScreen(
+                            viewModel = viewModel,
+                            isDarkMode = isDarkMode,
+                            appLanguage = appLanguage,
+                            onRentClick = { car ->
+                                val intent = Intent(this, RentalActivity::class.java).apply {
+                                    putExtra(RentalActivity.EXTRA_CAR, car)
+                                    putExtra(
+                                        RentalActivity.EXTRA_CREDIT_BALANCE,
+                                        viewModel.creditBalance.value
+                                    )
+                                    putExtra(RentalActivity.EXTRA_IS_DARK_MODE, isDarkMode)
+                                    putExtra(RentalActivity.EXTRA_LANGUAGE, appLanguage)
+                                }
+                                rentalLauncher.launch(intent)
                             }
-                            rentalLauncher.launch(intent)
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -161,6 +184,7 @@ class MainActivity : ComponentActivity() {
 fun CatalogueScreen(
     viewModel: CarRentalViewModel,
     isDarkMode: Boolean,
+    appLanguage: String,
     onRentClick: (Car) -> Unit
 ) {
     val creditBalance by viewModel.creditBalance.collectAsState()
@@ -171,13 +195,14 @@ fun CatalogueScreen(
     val availableCars by viewModel.availableCars.collectAsState()
     val favouriteCars by viewModel.favouriteCars.collectAsState()
     var sortResetKey by remember { mutableIntStateOf(0) }
+    var showLanguageMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Car Rental",
+                        text = stringResource(R.string.app_title),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp,
@@ -187,6 +212,80 @@ fun CatalogueScreen(
                     )
                 },
                 actions = {
+                    // Language Switcher Dropdown (EN / VI)
+                    Box(modifier = Modifier.padding(end = 8.dp)) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showLanguageMenu = true }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Language,
+                                    contentDescription = stringResource(R.string.language_title),
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (appLanguage == "vi") "VI" else "EN",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showLanguageMenu,
+                            onDismissRequest = { showLanguageMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.language_en)) },
+                                onClick = {
+                                    viewModel.setAppLanguage("en")
+                                    showLanguageMenu = false
+                                },
+                                trailingIcon = if (appLanguage == "en") {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.language_vi)) },
+                                onClick = {
+                                    viewModel.setAppLanguage("vi")
+                                    showLanguageMenu = false
+                                },
+                                trailingIcon = if (appLanguage == "vi") {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null
+                            )
+                        }
+                    }
+
                     // Minimalist Dark / Light Mode Switch
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -194,7 +293,7 @@ fun CatalogueScreen(
                     ) {
                         Icon(
                             imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
-                            contentDescription = "Theme Toggle",
+                            contentDescription = stringResource(R.string.theme_toggle_desc),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
                                 .size(20.dp)
@@ -249,7 +348,7 @@ fun CatalogueScreen(
                 ) {
                     Column {
                         Text(
-                            text = "AVAILABLE CREDITS",
+                            text = stringResource(R.string.available_credits_label),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 11.sp,
@@ -279,7 +378,7 @@ fun CatalogueScreen(
                         )
                     ) {
                         Text(
-                            text = "${availableCars.size} cars ready",
+                            text = stringResource(R.string.cars_ready_format, availableCars.size),
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp
@@ -320,7 +419,7 @@ fun CatalogueScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear search",
+                                contentDescription = stringResource(R.string.clear_search),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -345,7 +444,7 @@ fun CatalogueScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Sort:",
+                    text = stringResource(R.string.sort_prefix),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
@@ -361,7 +460,7 @@ fun CatalogueScreen(
                     },
                     label = {
                         Text(
-                            "Rating",
+                            stringResource(R.string.sort_rating),
                             style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
                         )
                     },
@@ -388,7 +487,7 @@ fun CatalogueScreen(
                     },
                     label = {
                         Text(
-                            "Newest",
+                            stringResource(R.string.sort_newest),
                             style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
                         )
                     },
@@ -415,7 +514,7 @@ fun CatalogueScreen(
                     },
                     label = {
                         Text(
-                            "Lowest Price",
+                            stringResource(R.string.sort_lowest_price),
                             style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
                         )
                     },
@@ -435,21 +534,21 @@ fun CatalogueScreen(
                 )
             }
 
-            // Horizontal Swipeable "Popular" Vehicles Section
+            // Horizontal Swipeable "Popular" Vehicles Section with Navigation Controls
             Column {
-                Text(
-                    text = "Popular",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        letterSpacing = (-0.3).sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
                 if (availableCars.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.section_popular),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            letterSpacing = (-0.3).sp
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     // Empty State Card
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -500,30 +599,250 @@ fun CatalogueScreen(
                                         contentColor = MaterialTheme.colorScheme.onPrimary
                                     )
                                 ) {
-                                    Text("Clear Search")
+                                    Text(stringResource(R.string.clear_search))
                                 }
                             }
                         }
                     }
                 } else {
-                    // Horizontal swipeable vehicle cards with peek - resets cleanly to item 0 on sort/search
                     key(sortOption, sortResetKey) {
                         val popularListState = rememberLazyListState()
+                        val coroutineScope = rememberCoroutineScope()
+
                         LaunchedEffect(searchQuery) {
                             popularListState.scrollToItem(0)
                         }
-                        LazyRow(
-                            state = popularListState,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            contentPadding = PaddingValues(end = 16.dp)
+
+                        val onPreviousClick: () -> Unit = {
+                            coroutineScope.launch {
+                                val current = popularListState.firstVisibleItemIndex
+                                val prev = if (current > 0) current - 1 else availableCars.size - 1
+                                popularListState.animateScrollToItem(prev)
+                                viewModel.previousCar()
+                            }
+                        }
+
+                        val onNextClick: () -> Unit = {
+                            coroutineScope.launch {
+                                val current = popularListState.firstVisibleItemIndex
+                                val next = (current + 1) % availableCars.size
+                                popularListState.animateScrollToItem(next)
+                                viewModel.nextCar()
+                            }
+                        }
+
+                        // Header with Title and Quick Arrows Navigation at top/beginning
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            items(availableCars, key = { it.id }) { car ->
-                                PopularCarCard(
-                                    car = car,
-                                    isFavourite = favourites.contains(car.id),
-                                    isDarkMode = isDarkMode,
-                                    onToggleFavourite = { viewModel.toggleFavourite(car.id) },
-                                    onRentClick = { onRentClick(car) }
+                            Text(
+                                text = stringResource(R.string.section_popular),
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    letterSpacing = (-0.3).sp
+                                ),
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    ),
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .clickable { onPreviousClick() }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = stringResource(R.string.back_desc),
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    )
+                                ) {
+                                    Text(
+                                        text = "${(popularListState.firstVisibleItemIndex + 1).coerceAtMost(availableCars.size)} / ${availableCars.size}",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    ),
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .clickable { onNextClick() }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = stringResource(R.string.next_button),
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Car List Container with Left (Back) and Right (Next) Arrow buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Back Arrow Button at start of vehicle list
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surface,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .clickable { onPreviousClick() }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.back_desc),
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Horizontal swipeable vehicle cards
+                            Box(modifier = Modifier.weight(1f)) {
+                                LazyRow(
+                                    state = popularListState,
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    contentPadding = PaddingValues(end = 8.dp)
+                                ) {
+                                    items(availableCars, key = { it.id }) { car ->
+                                        PopularCarCard(
+                                            car = car,
+                                            isFavourite = favourites.contains(car.id),
+                                            isDarkMode = isDarkMode,
+                                            onToggleFavourite = { viewModel.toggleFavourite(car.id) },
+                                            onRentClick = { onRentClick(car) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Next Arrow Button at end of vehicle list
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surface,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .clickable { onNextClick() }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = stringResource(R.string.next_button),
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Bottom Navigation Buttons with Explicit "Next Car" Button (Spec Requirement)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = onPreviousClick,
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.back_desc),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                            }
+
+                            Button(
+                                onClick = onNextClick,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.next_button),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
@@ -534,7 +853,7 @@ fun CatalogueScreen(
             // Distinct Favourites Section
             Column {
                 Text(
-                    text = "Favourites (${favouriteCars.size})",
+                    text = stringResource(R.string.favourites_count_title, favouriteCars.size),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
@@ -598,7 +917,11 @@ fun CatalogueScreen(
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = if (isRented) "Currently Rented" else "${favCar.dailyCost} credits / day",
+                                        text = if (isRented) {
+                                            stringResource(R.string.currently_rented)
+                                        } else {
+                                            stringResource(R.string.cost_format, favCar.dailyCost)
+                                        },
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 12.sp
@@ -615,7 +938,7 @@ fun CatalogueScreen(
             // Currently Rented Cars Section
             Column {
                 Text(
-                    text = "Active Rentals (${rentedBookings.size})",
+                    text = stringResource(R.string.rented_count_title, rentedBookings.size),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
@@ -673,13 +996,13 @@ fun CatalogueScreen(
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = "${booking.rentalDays} days rental",
+                                            text = stringResource(R.string.rental_days_format, booking.rentalDays),
                                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = "${booking.totalCost} Credits",
+                                            text = stringResource(R.string.credits_total_format, booking.totalCost),
                                             style = MaterialTheme.typography.labelMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp
@@ -699,7 +1022,7 @@ fun CatalogueScreen(
                                         )
                                     ) {
                                         Text(
-                                            "Return",
+                                            stringResource(R.string.return_button),
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.SemiBold,
                                                 fontSize = 12.sp
@@ -733,7 +1056,7 @@ fun PopularCarCard(
 ) {
     Card(
         modifier = Modifier
-            .width(310.dp)
+            .width(280.dp)
             .clickable { onRentClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
@@ -774,7 +1097,7 @@ fun PopularCarCard(
                 ) {
                     Icon(
                         imageVector = if (isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Favourite",
+                        contentDescription = stringResource(R.string.favourite_desc),
                         tint = if (isFavourite) AccentFavorite else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp)
                     )
@@ -806,7 +1129,7 @@ fun PopularCarCard(
 
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "${car.dailyCost} credits/",
+                            text = stringResource(R.string.cost_credits_slash, car.dailyCost),
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
@@ -814,7 +1137,7 @@ fun PopularCarCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "day",
+                            text = stringResource(R.string.day_unit),
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
@@ -838,7 +1161,7 @@ fun PopularCarCard(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "Model: ${car.model}",
+                        text = stringResource(R.string.model_format, car.model),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -857,7 +1180,7 @@ fun PopularCarCard(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "Year: ${car.year}",
+                        text = stringResource(R.string.year_format, car.year),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -875,9 +1198,8 @@ fun PopularCarCard(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp)
                     )
-                    val formattedKms = String.format(Locale.US, "%,d", car.kmsDriven)
                     Text(
-                        text = "Kilometres: $formattedKms km",
+                        text = stringResource(R.string.kms_label_format, car.kmsDriven),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -896,7 +1218,7 @@ fun PopularCarCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Rating: ",
+                            text = stringResource(R.string.rating_prefix),
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
@@ -917,7 +1239,7 @@ fun PopularCarCard(
                         modifier = Modifier.height(38.dp)
                     ) {
                         Text(
-                            text = "Rent",
+                            text = stringResource(R.string.rent_action),
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp

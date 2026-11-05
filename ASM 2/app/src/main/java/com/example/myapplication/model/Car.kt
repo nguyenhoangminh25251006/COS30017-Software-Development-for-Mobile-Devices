@@ -2,13 +2,11 @@ package com.example.myapplication.model
 
 import android.os.Parcel
 import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
 
 /**
  * Data class representing a vehicle in the rental catalogue.
- * Implements [Parcelable] with [@Parcelize] for explicit Intent passing across Activities.
+ * Implements [Parcelable] for explicit Intent passing across Activities.
  */
-@Parcelize
 data class Car(
     val id: String,
     val name: String,

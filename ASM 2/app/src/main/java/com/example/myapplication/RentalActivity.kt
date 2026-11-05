@@ -1,6 +1,5 @@
 package com.example.myapplication
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -10,7 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,9 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,8 +52,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -67,16 +62,16 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.domain.CarRentalDomain
 import com.example.myapplication.domain.ValidationResult
 import com.example.myapplication.model.Car
+import com.example.myapplication.ui.components.AppLocaleProvider
 import com.example.myapplication.ui.components.StarRatingBar
 import com.example.myapplication.ui.theme.AccentError
 import com.example.myapplication.ui.theme.MyApplicationTheme
-import java.util.Locale
 
 /**
  * Activity 2: Rental Details & Booking Confirmation.
  * Receives selected car as Parcelable via explicit Intent.
  * Features native Slider, dynamic cost calculation, strict credit rule validation,
- * and seamless return of booking result via Activity Result API.
+ * bilingual localization, and seamless return of booking result via Activity Result API.
  */
 class RentalActivity : ComponentActivity() {
 
@@ -93,6 +88,7 @@ class RentalActivity : ComponentActivity() {
 
         val creditBalance = intent.getIntExtra(EXTRA_CREDIT_BALANCE, 500)
         val isDarkMode = intent.getBooleanExtra(EXTRA_IS_DARK_MODE, false)
+        val appLanguage = intent.getStringExtra(EXTRA_LANGUAGE) ?: "en"
 
         if (car == null) {
             setResult(RESULT_CANCELED)
@@ -101,28 +97,30 @@ class RentalActivity : ComponentActivity() {
         }
 
         setContent {
-            MyApplicationTheme(darkTheme = isDarkMode) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    RentalScreen(
-                        car = car,
-                        creditBalance = creditBalance,
-                        onSaveBooking = { days, totalCost ->
-                            val resultIntent = Intent().apply {
-                                putExtra(EXTRA_BOOKED_CAR_ID, car.id)
-                                putExtra(EXTRA_RENTAL_DAYS, days)
-                                putExtra(EXTRA_TOTAL_COST, totalCost)
+            AppLocaleProvider(language = appLanguage) {
+                MyApplicationTheme(darkTheme = isDarkMode) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        RentalScreen(
+                            car = car,
+                            creditBalance = creditBalance,
+                            onSaveBooking = { days, totalCost ->
+                                val resultIntent = Intent().apply {
+                                    putExtra(EXTRA_BOOKED_CAR_ID, car.id)
+                                    putExtra(EXTRA_RENTAL_DAYS, days)
+                                    putExtra(EXTRA_TOTAL_COST, totalCost)
+                                }
+                                setResult(RESULT_OK, resultIntent)
+                                finish()
+                            },
+                            onCancel = {
+                                setResult(RESULT_CANCELED)
+                                finish()
                             }
-                            setResult(RESULT_OK, resultIntent)
-                            finish()
-                        },
-                        onCancel = {
-                            setResult(RESULT_CANCELED)
-                            finish()
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -132,6 +130,7 @@ class RentalActivity : ComponentActivity() {
         const val EXTRA_CAR = "extra_car"
         const val EXTRA_CREDIT_BALANCE = "extra_credit_balance"
         const val EXTRA_IS_DARK_MODE = "extra_is_dark_mode"
+        const val EXTRA_LANGUAGE = "extra_language"
         const val EXTRA_BOOKED_CAR_ID = "extra_booked_car_id"
         const val EXTRA_RENTAL_DAYS = "extra_rental_days"
         const val EXTRA_TOTAL_COST = "extra_total_cost"
@@ -149,6 +148,7 @@ fun RentalScreen(
     // Intercept system Back button / gesture to guarantee cancellation
     BackHandler(onBack = onCancel)
 
+    val context = LocalContext.current
     var rentalDaysFloat by remember { mutableFloatStateOf(1f) }
     val rentalDays = rentalDaysFloat.toInt()
     val totalCost = CarRentalDomain.calculateTotalCost(car.dailyCost, rentalDays)
@@ -160,7 +160,7 @@ fun RentalScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Rental Details",
+                        text = stringResource(R.string.rental_details_title),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
@@ -173,7 +173,7 @@ fun RentalScreen(
                     IconButton(onClick = onCancel) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back_desc),
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
@@ -282,7 +282,7 @@ fun RentalScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "${car.dailyCost} credits / day",
+                            text = stringResource(R.string.cost_format, car.dailyCost),
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
@@ -313,7 +313,7 @@ fun RentalScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Rental Duration",
+                            text = stringResource(R.string.rental_duration_title),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
@@ -325,7 +325,11 @@ fun RentalScreen(
                             color = MaterialTheme.colorScheme.primary
                         ) {
                             Text(
-                                text = "$rentalDays ${if (rentalDays == 1) "day" else "days"}",
+                                text = if (rentalDays == 1) {
+                                    stringResource(R.string.duration_day_format, 1)
+                                } else {
+                                    stringResource(R.string.duration_days_format, rentalDays)
+                                },
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp
@@ -360,12 +364,12 @@ fun RentalScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "1 Day",
+                            text = stringResource(R.string.slider_min_days),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "7 Days",
+                            text = stringResource(R.string.slider_max_days),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -383,13 +387,13 @@ fun RentalScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Current Balance",
+                                text = stringResource(R.string.current_balance_label),
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "$creditBalance credits",
+                                text = stringResource(R.string.credits_suffix_format, creditBalance),
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 16.sp
@@ -400,13 +404,13 @@ fun RentalScreen(
 
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "Total Cost",
+                                text = stringResource(R.string.total_cost_label),
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "$totalCost credits",
+                                text = stringResource(R.string.credits_suffix_format, totalCost),
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 22.sp
@@ -501,7 +505,18 @@ fun RentalScreen(
                                 onSaveBooking(rentalDays, totalCost)
                             }
                             is ValidationResult.Error -> {
-                                errorMessage = validation.message
+                                errorMessage = if (validation.messageResId != 0) {
+                                    if (validation.formatArgs.isNotEmpty()) {
+                                        context.getString(
+                                            validation.messageResId,
+                                            *validation.formatArgs.toTypedArray()
+                                        )
+                                    } else {
+                                        context.getString(validation.messageResId)
+                                    }
+                                } else {
+                                    validation.message
+                                }
                             }
                         }
                     },

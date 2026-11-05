@@ -3,8 +3,6 @@ plugins {
     alias(libs.plugins.kotlinCompose)
 }
 
-apply(plugin = "kotlin-parcelize")
-
 android {
     namespace = "com.example.myapplication"
     compileSdk {
@@ -47,7 +45,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
