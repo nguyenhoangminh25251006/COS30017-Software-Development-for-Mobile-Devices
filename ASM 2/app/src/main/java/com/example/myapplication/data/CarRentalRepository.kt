@@ -212,6 +212,19 @@ class CarRentalRepository {
     }
 
     /**
+     * Sets the active car index (e.g. when swiping or scrolling carousel),
+     * ensuring state persists across screen orientation changes.
+     */
+    fun setCurrentCarIndex(index: Int) {
+        val available = getAvailableCars()
+        if (available.isNotEmpty()) {
+            val validIndex = index.coerceIn(0, available.size - 1)
+            _currentCarIndex.value = validIndex
+            _currentCar.value = available[validIndex]
+        }
+    }
+
+    /**
      * Updates search query and resets car navigation index.
      */
     fun setSearchQuery(query: String) {

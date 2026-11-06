@@ -48,7 +48,7 @@
     <string name="credits_total_format">%1$d Credits</string>
     <string name="total_cost_label">Total Cost</string>
     <string name="total_cost_format">Total Cost: %1$d Credits</string>
-    <string name="confirm_booking">Confirm &amp; Save Booking</string>
+    <string name="confirm_booking">Confirm Booking</string>
     <string name="cancel_booking">Cancel Booking</string>
     <string name="booking_successful">Booking successful! %1$d credits deducted for %2$d day(s).</string>
     <string name="booking_cancelled">Booking cancelled. No credits deducted.</string>

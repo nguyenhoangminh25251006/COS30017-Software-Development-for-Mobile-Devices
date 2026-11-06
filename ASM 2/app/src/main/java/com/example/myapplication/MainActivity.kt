@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -74,15 +75,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -90,18 +92,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplication.model.Car
+import com.example.myapplication.model.RentalBooking
 import com.example.myapplication.model.SortOption
 import com.example.myapplication.ui.CarRentalViewModel
 import com.example.myapplication.ui.components.AppLocaleProvider
 import com.example.myapplication.ui.components.StarRatingBar
 import com.example.myapplication.ui.theme.AccentFavorite
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Activity 1: Car Rental Dashboard.
  * Clean, modern editorial automotive UI with horizontal swipeable vehicle cards,
  * real-time search & sorting, favourites tracking, active bookings management,
- * and bilingual language switching (English / Vietnamese).
+ * adaptive portrait/landscape layout, and bilingual language switching (English / Vietnamese).
  */
 class MainActivity : ComponentActivity() {
 
@@ -117,13 +122,19 @@ class MainActivity : ComponentActivity() {
             val userMessage by viewModel.userMessage.collectAsState()
             val localizedToast by viewModel.localizedToast.collectAsState()
 
-            // Toast feedback for user actions supporting localization
-            LaunchedEffect(userMessage, localizedToast) {
+            // Toast feedback follows the in-app language, not the system locale
+            val context = LocalContext.current
+            LaunchedEffect(userMessage, localizedToast, appLanguage) {
+                val localizedContext = context.createConfigurationContext(
+                    Configuration(context.resources.configuration).apply {
+                        setLocale(Locale.forLanguageTag(appLanguage))
+                    }
+                )
                 val text = localizedToast?.let { toast ->
                     if (toast.formatArgs.isNotEmpty()) {
-                        getString(toast.resId, *toast.formatArgs.toTypedArray())
+                        localizedContext.getString(toast.resId, *toast.formatArgs.toTypedArray())
                     } else {
-                        getString(toast.resId)
+                        localizedContext.getString(toast.resId)
                     }
                 } ?: userMessage
 
@@ -187,6 +198,9 @@ fun CatalogueScreen(
     appLanguage: String,
     onRentClick: (Car) -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     val creditBalance by viewModel.creditBalance.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
@@ -194,8 +208,11 @@ fun CatalogueScreen(
     val rentedBookings by viewModel.rentedBookings.collectAsState()
     val availableCars by viewModel.availableCars.collectAsState()
     val favouriteCars by viewModel.favouriteCars.collectAsState()
-    var sortResetKey by remember { mutableIntStateOf(0) }
-    var showLanguageMenu by remember { mutableStateOf(false) }
+    val currentCarIndex by viewModel.currentCarIndex.collectAsState()
+
+    // Persist UI controls across orientation changes
+    var sortResetKey by rememberSaveable { mutableIntStateOf(0) }
+    var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -318,15 +335,416 @@ fun CatalogueScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        if (isLandscape) {
+            // Adaptive Landscape Layout: Side-by-side header & dual-pane bottom dashboard
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header Row: Credit Balance on Left, Search & Sort on Right
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(modifier = Modifier.weight(0.42f)) {
+                        AccountCreditBalanceCard(
+                            creditBalance = creditBalance,
+                            availableCarsCount = availableCars.size
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(0.58f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        SearchAndSortControls(
+                            searchQuery = searchQuery,
+                            onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                            onClearSearch = {
+                                viewModel.setSearchQuery("")
+                                sortResetKey++
+                            },
+                            sortOption = sortOption,
+                            onSortOptionChange = { option ->
+                                viewModel.setSortOption(option)
+                                sortResetKey++
+                            }
+                        )
+                    }
+                }
+
+                // Horizontal Swipeable "Popular" Vehicles Section (optimized for landscape)
+                PopularCarsSection(
+                    availableCars = availableCars,
+                    currentCarIndex = currentCarIndex,
+                    favourites = favourites,
+                    isDarkMode = isDarkMode,
+                    isLandscape = true,
+                    sortOption = sortOption,
+                    sortResetKey = sortResetKey,
+                    searchQuery = searchQuery,
+                    onPreviousClick = { viewModel.previousCar() },
+                    onNextClick = { viewModel.nextCar() },
+                    onCarIndexChange = { viewModel.setCurrentCarIndex(it) },
+                    onToggleFavourite = { viewModel.toggleFavourite(it) },
+                    onRentClick = onRentClick,
+                    onClearSearch = {
+                        viewModel.setSearchQuery("")
+                        sortResetKey++
+                    }
+                )
+
+                // Dashboard Row: Favourites on Left, Currently Rented Cars on Right
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        FavouritesSection(
+                            favouriteCars = favouriteCars,
+                            rentedBookings = rentedBookings,
+                            onRentClick = onRentClick
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        RentedCarsSection(
+                            rentedBookings = rentedBookings,
+                            onReturnClick = { viewModel.returnRentedCar(it) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        } else {
+            // Portrait Layout: Single Column vertical flow
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                AccountCreditBalanceCard(
+                    creditBalance = creditBalance,
+                    availableCarsCount = availableCars.size
+                )
+
+                SearchAndSortControls(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                    onClearSearch = {
+                        viewModel.setSearchQuery("")
+                        sortResetKey++
+                    },
+                    sortOption = sortOption,
+                    onSortOptionChange = { option ->
+                        viewModel.setSortOption(option)
+                        sortResetKey++
+                    }
+                )
+
+                PopularCarsSection(
+                    availableCars = availableCars,
+                    currentCarIndex = currentCarIndex,
+                    favourites = favourites,
+                    isDarkMode = isDarkMode,
+                    isLandscape = false,
+                    sortOption = sortOption,
+                    sortResetKey = sortResetKey,
+                    searchQuery = searchQuery,
+                    onPreviousClick = { viewModel.previousCar() },
+                    onNextClick = { viewModel.nextCar() },
+                    onCarIndexChange = { viewModel.setCurrentCarIndex(it) },
+                    onToggleFavourite = { viewModel.toggleFavourite(it) },
+                    onRentClick = onRentClick,
+                    onClearSearch = {
+                        viewModel.setSearchQuery("")
+                        sortResetKey++
+                    }
+                )
+
+                FavouritesSection(
+                    favouriteCars = favouriteCars,
+                    rentedBookings = rentedBookings,
+                    onRentClick = onRentClick
+                )
+
+                RentedCarsSection(
+                    rentedBookings = rentedBookings,
+                    onReturnClick = { viewModel.returnRentedCar(it) }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+/**
+ * Reusable Account Credit Balance Card.
+ */
+@Composable
+fun AccountCreditBalanceCard(
+    creditBalance: Int,
+    availableCarsCount: Int,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Elegant Account Credit Balance Card
+            Column {
+                Text(
+                    text = stringResource(R.string.available_credits_label),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.2.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "$creditBalance",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 28.sp,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+            ) {
+                Text(
+                    text = stringResource(R.string.cars_ready_format, availableCarsCount),
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Reusable Search Field and Sort Filter Chips.
+ */
+@Composable
+fun SearchAndSortControls(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit,
+    sortOption: SortOption,
+    onSortOptionChange: (SortOption) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Minimalist Monochromatic Search Field
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = {
+                Text(
+                    stringResource(R.string.search_hint),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            shape = RoundedCornerShape(14.dp),
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = onClearSearch) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = stringResource(R.string.clear_search),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+            ),
+            singleLine = true
+        )
+
+        // Monochromatic Quick Sort Filter Chips
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.sort_prefix),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            FilterChip(
+                selected = sortOption == SortOption.RATING_DESC,
+                onClick = { onSortOptionChange(SortOption.RATING_DESC) },
+                label = {
+                    Text(
+                        stringResource(R.string.sort_rating),
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
+                    )
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    labelColor = MaterialTheme.colorScheme.onSurface
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                    enabled = true,
+                    selected = sortOption == SortOption.RATING_DESC
+                )
+            )
+
+            FilterChip(
+                selected = sortOption == SortOption.YEAR_DESC,
+                onClick = { onSortOptionChange(SortOption.YEAR_DESC) },
+                label = {
+                    Text(
+                        stringResource(R.string.sort_newest),
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
+                    )
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    labelColor = MaterialTheme.colorScheme.onSurface
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                    enabled = true,
+                    selected = sortOption == SortOption.YEAR_DESC
+                )
+            )
+
+            FilterChip(
+                selected = sortOption == SortOption.COST_ASC,
+                onClick = { onSortOptionChange(SortOption.COST_ASC) },
+                label = {
+                    Text(
+                        stringResource(R.string.sort_lowest_price),
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
+                    )
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    labelColor = MaterialTheme.colorScheme.onSurface
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                    enabled = true,
+                    selected = sortOption == SortOption.COST_ASC
+                )
+            )
+        }
+    }
+}
+
+/**
+ * Reusable Horizontal Swipeable Popular Vehicles Section with Navigation Controls.
+ * Supports adaptive sizing for landscape mode and preserves active car position across rotations.
+ */
+@Composable
+fun PopularCarsSection(
+    availableCars: List<Car>,
+    currentCarIndex: Int,
+    favourites: Set<String>,
+    isDarkMode: Boolean,
+    isLandscape: Boolean,
+    sortOption: SortOption,
+    sortResetKey: Int,
+    searchQuery: String,
+    onPreviousClick: () -> Unit,
+    onNextClick: () -> Unit,
+    onCarIndexChange: (Int) -> Unit,
+    onToggleFavourite: (String) -> Unit,
+    onRentClick: (Car) -> Unit,
+    onClearSearch: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        if (availableCars.isEmpty()) {
+            Text(
+                text = stringResource(R.string.section_popular),
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    letterSpacing = (-0.3).sp
+                ),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -336,207 +754,99 @@ fun CatalogueScreen(
                 border = androidx.compose.foundation.BorderStroke(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                )
             ) {
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(32.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.available_credits_label),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.sp,
-                                letterSpacing = 1.2.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "$creditBalance",
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 28.sp,
-                                letterSpacing = (-0.5).sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    // Available inventory badge
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        )
-                    ) {
-                        Text(
-                            text = stringResource(R.string.cars_ready_format, availableCars.size),
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
+                    Icon(
+                        imageVector = Icons.Default.DirectionsCar,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(44.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = if (searchQuery.isNotEmpty()) {
+                            stringResource(R.string.no_search_results)
+                        } else {
+                            stringResource(R.string.no_available_cars)
+                        },
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (searchQuery.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = onClearSearch,
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Text(stringResource(R.string.clear_search))
+                        }
                     }
                 }
             }
+        } else {
+            key(sortOption, sortResetKey) {
+                // Initialize at active car index to preserve position across rotation
+                val popularListState = rememberLazyListState(
+                    initialFirstVisibleItemIndex = currentCarIndex.coerceIn(
+                        0,
+                        (availableCars.size - 1).coerceAtLeast(0)
+                    )
+                )
+                val coroutineScope = rememberCoroutineScope()
 
-            // Minimalist Monochromatic Search Field
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.setSearchQuery(it) },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        stringResource(R.string.search_hint),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                shape = RoundedCornerShape(14.dp),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                trailingIcon = {
+                LaunchedEffect(searchQuery) {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = {
-                            viewModel.setSearchQuery("")
-                            sortResetKey++
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = stringResource(R.string.clear_search),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        popularListState.scrollToItem(0)
                     }
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                ),
-                singleLine = true
-            )
+                }
 
-            // Monochromatic Quick Sort Filter Chips
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.sort_prefix),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Keep view model in sync with user scrolling
+                LaunchedEffect(popularListState) {
+                    snapshotFlow { popularListState.firstVisibleItemIndex }
+                        .collect { index ->
+                            if (index in availableCars.indices) {
+                                onCarIndexChange(index)
+                            }
+                        }
+                }
 
-                FilterChip(
-                    selected = sortOption == SortOption.RATING_DESC,
-                    onClick = {
-                        viewModel.setSortOption(SortOption.RATING_DESC)
-                        sortResetKey++
-                    },
-                    label = {
-                        Text(
-                            stringResource(R.string.sort_rating),
-                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
-                        )
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        labelColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        borderColor = MaterialTheme.colorScheme.outlineVariant,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        enabled = true,
-                        selected = sortOption == SortOption.RATING_DESC
-                    )
-                )
+                val handlePrevious: () -> Unit = {
+                    coroutineScope.launch {
+                        val current = popularListState.firstVisibleItemIndex
+                        val prev = if (current > 0) current - 1 else availableCars.size - 1
+                        popularListState.animateScrollToItem(prev)
+                        onPreviousClick()
+                    }
+                }
 
-                FilterChip(
-                    selected = sortOption == SortOption.YEAR_DESC,
-                    onClick = {
-                        viewModel.setSortOption(SortOption.YEAR_DESC)
-                        sortResetKey++
-                    },
-                    label = {
-                        Text(
-                            stringResource(R.string.sort_newest),
-                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
-                        )
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        labelColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        borderColor = MaterialTheme.colorScheme.outlineVariant,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        enabled = true,
-                        selected = sortOption == SortOption.YEAR_DESC
-                    )
-                )
+                val handleNext: () -> Unit = {
+                    coroutineScope.launch {
+                        val current = popularListState.firstVisibleItemIndex
+                        val next = (current + 1) % availableCars.size
+                        popularListState.animateScrollToItem(next)
+                        onNextClick()
+                    }
+                }
 
-                FilterChip(
-                    selected = sortOption == SortOption.COST_ASC,
-                    onClick = {
-                        viewModel.setSortOption(SortOption.COST_ASC)
-                        sortResetKey++
-                    },
-                    label = {
-                        Text(
-                            stringResource(R.string.sort_lowest_price),
-                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
-                        )
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        labelColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        borderColor = MaterialTheme.colorScheme.outlineVariant,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        enabled = true,
-                        selected = sortOption == SortOption.COST_ASC
-                    )
-                )
-            }
-
-            // Horizontal Swipeable "Popular" Vehicles Section with Navigation Controls
-            Column {
-                if (availableCars.isEmpty()) {
+                // Header with Title and Quick Arrows Navigation
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = stringResource(R.string.section_popular),
                         style = MaterialTheme.typography.titleLarge.copy(
@@ -547,12 +857,253 @@ fun CatalogueScreen(
                         color = MaterialTheme.colorScheme.onBackground
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .clickable { handlePrevious() }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.back_desc),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
 
-                    // Empty State Card
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        ) {
+                            Text(
+                                text = "${(popularListState.firstVisibleItemIndex + 1).coerceAtMost(availableCars.size)} / ${availableCars.size}",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .clickable { handleNext() }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = stringResource(R.string.next_button),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Car List Container with Left (Back) and Right (Next) Arrow buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        ),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .clickable { handlePrevious() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back_desc),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        LazyRow(
+                            state = popularListState,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(end = 8.dp)
+                        ) {
+                            items(availableCars, key = { it.id }) { car ->
+                                PopularCarCard(
+                                    car = car,
+                                    isFavourite = favourites.contains(car.id),
+                                    isDarkMode = isDarkMode,
+                                    isLandscape = isLandscape,
+                                    onToggleFavourite = { onToggleFavourite(car.id) },
+                                    onRentClick = { onRentClick(car) }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        ),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .clickable { handleNext() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = stringResource(R.string.next_button),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Bottom Navigation Buttons with Explicit "Next Car" Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = handlePrevious,
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.back_desc),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    }
+
+                    Button(
+                        onClick = handleNext,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.next_button),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Reusable Favourites Section.
+ */
+@Composable
+fun FavouritesSection(
+    favouriteCars: List<Car>,
+    rentedBookings: List<RentalBooking>,
+    onRentClick: (Car) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.favourites_count_title, favouriteCars.size),
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                letterSpacing = (-0.3).sp
+            ),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (favouriteCars.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_favourites),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(end = 16.dp)
+            ) {
+                items(favouriteCars, key = { it.id }) { favCar ->
+                    val isRented = rentedBookings.any { it.car.id == favCar.id }
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .width(180.dp)
+                            .clickable {
+                                if (!isRented) {
+                                    onRentClick(favCar)
+                                }
+                            },
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
@@ -561,502 +1112,178 @@ fun CatalogueScreen(
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .padding(32.dp)
-                                .fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DirectionsCar,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(44.dp)
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Image(
+                                painter = painterResource(id = favCar.imageResId),
+                                contentDescription = favCar.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(95.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = if (searchQuery.isNotEmpty()) {
-                                    stringResource(R.string.no_search_results)
-                                } else {
-                                    stringResource(R.string.no_available_cars)
-                                },
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 16.sp
+                                text = favCar.name,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
                                 ),
+                                maxLines = 1,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            if (searchQuery.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Button(
-                                    onClick = {
-                                        viewModel.setSearchQuery("")
-                                        sortResetKey++
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                ) {
-                                    Text(stringResource(R.string.clear_search))
-                                }
-                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (isRented) {
+                                    stringResource(R.string.currently_rented)
+                                } else {
+                                    stringResource(R.string.cost_format, favCar.dailyCost)
+                                },
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
+                                ),
+                                color = if (isRented) AccentFavorite else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                } else {
-                    key(sortOption, sortResetKey) {
-                        val popularListState = rememberLazyListState()
-                        val coroutineScope = rememberCoroutineScope()
+                }
+            }
+        }
+    }
+}
 
-                        LaunchedEffect(searchQuery) {
-                            popularListState.scrollToItem(0)
-                        }
+/**
+ * Reusable Currently Rented Cars Section.
+ */
+@Composable
+fun RentedCarsSection(
+    rentedBookings: List<RentalBooking>,
+    onReturnClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.rented_count_title, rentedBookings.size),
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                letterSpacing = (-0.3).sp
+            ),
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
-                        val onPreviousClick: () -> Unit = {
-                            coroutineScope.launch {
-                                val current = popularListState.firstVisibleItemIndex
-                                val prev = if (current > 0) current - 1 else availableCars.size - 1
-                                popularListState.animateScrollToItem(prev)
-                                viewModel.previousCar()
-                            }
-                        }
+        Spacer(modifier = Modifier.height(10.dp))
 
-                        val onNextClick: () -> Unit = {
-                            coroutineScope.launch {
-                                val current = popularListState.firstVisibleItemIndex
-                                val next = (current + 1) % availableCars.size
-                                popularListState.animateScrollToItem(next)
-                                viewModel.nextCar()
-                            }
-                        }
-
-                        // Header with Title and Quick Arrows Navigation at top/beginning
+        if (rentedBookings.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_rented_cars),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                rentedBookings.forEach { booking ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .padding(14.dp)
+                                .fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = stringResource(R.string.section_popular),
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp,
-                                    letterSpacing = (-0.3).sp
-                                ),
-                                color = MaterialTheme.colorScheme.onBackground
+                            Image(
+                                painter = painterResource(id = booking.car.imageResId),
+                                contentDescription = booking.car.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(68.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
                             )
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = booking.car.name,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
                                     ),
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .clickable { onPreviousClick() }
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = stringResource(R.string.back_desc),
-                                            tint = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant
-                                    )
-                                ) {
-                                    Text(
-                                        text = "${(popularListState.firstVisibleItemIndex + 1).coerceAtMost(availableCars.size)} / ${availableCars.size}",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.rental_days_format, booking.rentalDays),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.credits_total_format, booking.totalCost),
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
                                     ),
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .clickable { onNextClick() }
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = stringResource(R.string.next_button),
-                                            tint = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Car List Container with Left (Back) and Right (Next) Arrow buttons
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Back Arrow Button at start of vehicle list
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surface,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant
-                                ),
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .clickable { onPreviousClick() }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = stringResource(R.string.back_desc),
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Horizontal swipeable vehicle cards
-                            Box(modifier = Modifier.weight(1f)) {
-                                LazyRow(
-                                    state = popularListState,
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                    contentPadding = PaddingValues(end = 8.dp)
-                                ) {
-                                    items(availableCars, key = { it.id }) { car ->
-                                        PopularCarCard(
-                                            car = car,
-                                            isFavourite = favourites.contains(car.id),
-                                            isDarkMode = isDarkMode,
-                                            onToggleFavourite = { viewModel.toggleFavourite(car.id) },
-                                            onRentClick = { onRentClick(car) }
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Next Arrow Button at end of vehicle list
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surface,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant
-                                ),
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .clickable { onNextClick() }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = stringResource(R.string.next_button),
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Bottom Navigation Buttons with Explicit "Next Car" Button (Spec Requirement)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
                             OutlinedButton(
-                                onClick = onPreviousClick,
-                                shape = RoundedCornerShape(10.dp),
+                                onClick = { onReturnClick(booking.car.id) },
+                                shape = RoundedCornerShape(8.dp),
                                 border = androidx.compose.foundation.BorderStroke(
                                     width = 1.dp,
                                     color = MaterialTheme.colorScheme.outlineVariant
                                 ),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(R.string.back_desc),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                                )
-                            }
-
-                            Button(
-                                onClick = onNextClick,
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                             ) {
                                 Text(
-                                    text = stringResource(R.string.next_button),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                    stringResource(R.string.return_button),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp
+                                    )
                                 )
                             }
                         }
                     }
                 }
             }
-
-            // Distinct Favourites Section
-            Column {
-                Text(
-                    text = stringResource(R.string.favourites_count_title, favouriteCars.size),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        letterSpacing = (-0.3).sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                if (favouriteCars.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.no_favourites),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(end = 16.dp)
-                    ) {
-                        items(favouriteCars, key = { it.id }) { favCar ->
-                            val isRented = rentedBookings.any { it.car.id == favCar.id }
-                            Card(
-                                modifier = Modifier
-                                    .width(180.dp)
-                                    .clickable {
-                                        if (!isRented) {
-                                            onRentClick(favCar)
-                                        }
-                                    },
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant
-                                )
-                            ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    Image(
-                                        painter = painterResource(id = favCar.imageResId),
-                                        contentDescription = favCar.name,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(95.dp)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text(
-                                        text = favCar.name,
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp
-                                        ),
-                                        maxLines = 1,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = if (isRented) {
-                                            stringResource(R.string.currently_rented)
-                                        } else {
-                                            stringResource(R.string.cost_format, favCar.dailyCost)
-                                        },
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 12.sp
-                                        ),
-                                        color = if (isRented) AccentFavorite else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Currently Rented Cars Section
-            Column {
-                Text(
-                    text = stringResource(R.string.rented_count_title, rentedBookings.size),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        letterSpacing = (-0.3).sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                if (rentedBookings.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.no_rented_cars),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        rentedBookings.forEach { booking ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .padding(14.dp)
-                                        .fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Image(
-                                        painter = painterResource(id = booking.car.imageResId),
-                                        contentDescription = booking.car.name,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(68.dp)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    )
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = booking.car.name,
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = stringResource(R.string.rental_days_format, booking.rentalDays),
-                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = stringResource(R.string.credits_total_format, booking.totalCost),
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    OutlinedButton(
-                                        onClick = { viewModel.returnRentedCar(booking.car.id) },
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = androidx.compose.foundation.BorderStroke(
-                                            width = 1.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant
-                                        ),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    ) {
-                                        Text(
-                                            stringResource(R.string.return_button),
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontWeight = FontWeight.SemiBold,
-                                                fontSize = 12.sp
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 /**
  * Modern Popular vehicle card matching editorial automotive reference design.
- * Features large vehicle image, heart favourite toggle, vehicle specs (model, year, kilometres),
- * rating stars, and pill 'Rent' action button.
+ * Features large vehicle image (adaptive height for portrait/landscape), heart favourite toggle,
+ * vehicle specs (model, year, kilometres), rating stars, and pill 'Rent' action button.
  */
 @Composable
 fun PopularCarCard(
     car: Car,
     isFavourite: Boolean,
     isDarkMode: Boolean,
+    isLandscape: Boolean = false,
     onToggleFavourite: () -> Unit,
     onRentClick: () -> Unit
 ) {
+    val cardWidth = if (isLandscape) 300.dp else 280.dp
+    val imageHeight = if (isLandscape) 140.dp else 180.dp
+
     Card(
         modifier = Modifier
-            .width(280.dp)
+            .width(cardWidth)
             .clickable { onRentClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
@@ -1073,7 +1300,7 @@ fun PopularCarCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
+                    .height(imageHeight)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Image(

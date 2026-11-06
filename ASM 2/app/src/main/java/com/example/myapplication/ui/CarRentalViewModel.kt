@@ -86,6 +86,10 @@ class CarRentalViewModel(
         repository.previousCar()
     }
 
+    fun setCurrentCarIndex(index: Int) {
+        repository.setCurrentCarIndex(index)
+    }
+
     fun getAvailableCars(): List<Car> {
         return repository.getAvailableCars()
     }

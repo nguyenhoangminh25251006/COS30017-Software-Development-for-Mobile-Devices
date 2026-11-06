@@ -42,4 +42,23 @@ class CarRentalViewModelTest {
         viewModel.setAppLanguage("fr")
         assertEquals("en", viewModel.appLanguage.value)
     }
+
+    @Test
+    fun testSetCurrentCarIndexPersistsState() {
+        assertEquals(0, viewModel.currentCarIndex.value)
+        viewModel.setCurrentCarIndex(2)
+        assertEquals(2, viewModel.currentCarIndex.value)
+        val car = viewModel.currentCar.value
+        assertEquals(viewModel.availableCars.value[2].id, car?.id)
+    }
+
+    @Test
+    fun testSetCurrentCarIndexCoercesBounds() {
+        viewModel.setCurrentCarIndex(999)
+        val maxIndex = viewModel.availableCars.value.size - 1
+        assertEquals(maxIndex, viewModel.currentCarIndex.value)
+
+        viewModel.setCurrentCarIndex(-5)
+        assertEquals(0, viewModel.currentCarIndex.value)
+    }
 }

@@ -49,7 +49,7 @@
     <string name="credits_total_format">%1$d Credits</string>
     <string name="total_cost_label">Tổng chi phí</string>
     <string name="total_cost_format">Tổng chi phí: %1$d Credits</string>
-    <string name="confirm_booking">Xác nhận &amp; Lưu đặt xe</string>
+    <string name="confirm_booking">Xác nhận đặt xe</string>
     <string name="cancel_booking">Hủy đặt xe</string>
     <string name="booking_successful">Đặt xe thành công! Đã trừ %1$d credits cho %2$d ngày.</string>
     <string name="booking_cancelled">Đã hủy đặt xe. Không bị trừ credits.</string>
