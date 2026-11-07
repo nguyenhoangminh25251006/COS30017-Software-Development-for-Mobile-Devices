@@ -16,6 +16,8 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.MyApplication"
+            android:screenOrientation="fullSensor"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -28,6 +30,8 @@
             android:exported="false"
             android:label="@string/rental_details_title"
             android:theme="@style/Theme.MyApplication"
+            android:screenOrientation="fullSensor"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:windowSoftInputMode="adjustResize" />
     </application>
 

@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
@@ -198,6 +200,7 @@ fun CatalogueScreen(
     appLanguage: String,
     onRentClick: (Car) -> Unit
 ) {
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -229,6 +232,26 @@ fun CatalogueScreen(
                     )
                 },
                 actions = {
+                    // One-Tap Screen Orientation Toggle Button (Landscape <-> Portrait)
+                    IconButton(
+                        onClick = {
+                            val activity = context as? ComponentActivity
+                            activity?.requestedOrientation = if (isLandscape) {
+                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            } else {
+                                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                            }
+                        },
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ScreenRotation,
+                            contentDescription = stringResource(R.string.rotate_desc),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
                     // Language Switcher Dropdown (EN / VI)
                     Box(modifier = Modifier.padding(end = 8.dp)) {
                         Surface(

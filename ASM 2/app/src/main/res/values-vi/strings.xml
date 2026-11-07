@@ -65,5 +65,6 @@
     <string name="language_vi">Tiếng Việt</string>
     <string name="favourite_desc">Yêu thích</string>
     <string name="theme_toggle_desc">Chuyển giao diện</string>
+    <string name="rotate_desc">Xoay màn hình</string>
     <string name="back_desc">Quay lại</string>
 </resources>
