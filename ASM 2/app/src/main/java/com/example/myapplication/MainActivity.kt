@@ -1,7 +1,6 @@
 package com.example.myapplication
 
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
@@ -45,7 +44,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
@@ -232,26 +230,6 @@ fun CatalogueScreen(
                     )
                 },
                 actions = {
-                    // One-Tap Screen Orientation Toggle Button (Landscape <-> Portrait)
-                    IconButton(
-                        onClick = {
-                            val activity = context as? ComponentActivity
-                            activity?.requestedOrientation = if (isLandscape) {
-                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                            } else {
-                                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                            }
-                        },
-                        modifier = Modifier.padding(end = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ScreenRotation,
-                            contentDescription = stringResource(R.string.rotate_desc),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
                     // Language Switcher Dropdown (EN / VI)
                     Box(modifier = Modifier.padding(end = 8.dp)) {
                         Surface(
@@ -410,8 +388,6 @@ fun CatalogueScreen(
                     sortOption = sortOption,
                     sortResetKey = sortResetKey,
                     searchQuery = searchQuery,
-                    onPreviousClick = { viewModel.previousCar() },
-                    onNextClick = { viewModel.nextCar() },
                     onCarIndexChange = { viewModel.setCurrentCarIndex(it) },
                     onToggleFavourite = { viewModel.toggleFavourite(it) },
                     onRentClick = onRentClick,
@@ -482,8 +458,6 @@ fun CatalogueScreen(
                     sortOption = sortOption,
                     sortResetKey = sortResetKey,
                     searchQuery = searchQuery,
-                    onPreviousClick = { viewModel.previousCar() },
-                    onNextClick = { viewModel.nextCar() },
                     onCarIndexChange = { viewModel.setCurrentCarIndex(it) },
                     onToggleFavourite = { viewModel.toggleFavourite(it) },
                     onRentClick = onRentClick,
@@ -733,8 +707,8 @@ fun SearchAndSortControls(
 }
 
 /**
- * Reusable Horizontal Swipeable Popular Vehicles Section with Navigation Controls.
- * Supports adaptive sizing for landscape mode and preserves active car position across rotations.
+ * Reusable Horizontal Swipeable Popular Vehicles Section.
+ * Features clean swipeable vehicle cards and counter badge, supporting adaptive sizing for landscape mode.
  */
 @Composable
 fun PopularCarsSection(
@@ -746,8 +720,6 @@ fun PopularCarsSection(
     sortOption: SortOption,
     sortResetKey: Int,
     searchQuery: String,
-    onPreviousClick: () -> Unit,
-    onNextClick: () -> Unit,
     onCarIndexChange: (Int) -> Unit,
     onToggleFavourite: (String) -> Unit,
     onRentClick: (Car) -> Unit,
@@ -828,7 +800,6 @@ fun PopularCarsSection(
                         (availableCars.size - 1).coerceAtLeast(0)
                     )
                 )
-                val coroutineScope = rememberCoroutineScope()
 
                 LaunchedEffect(searchQuery) {
                     if (searchQuery.isNotEmpty()) {
@@ -846,25 +817,7 @@ fun PopularCarsSection(
                         }
                 }
 
-                val handlePrevious: () -> Unit = {
-                    coroutineScope.launch {
-                        val current = popularListState.firstVisibleItemIndex
-                        val prev = if (current > 0) current - 1 else availableCars.size - 1
-                        popularListState.animateScrollToItem(prev)
-                        onPreviousClick()
-                    }
-                }
-
-                val handleNext: () -> Unit = {
-                    coroutineScope.launch {
-                        val current = popularListState.firstVisibleItemIndex
-                        val next = (current + 1) % availableCars.size
-                        popularListState.animateScrollToItem(next)
-                        onNextClick()
-                    }
-                }
-
-                // Header with Title and Quick Arrows Navigation
+                // Header with Section Title and Vehicle Counter Badge
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -880,200 +833,43 @@ fun PopularCarsSection(
                         color = MaterialTheme.colorScheme.onBackground
                     )
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant
+                        Text(
+                            text = "${(popularListState.firstVisibleItemIndex + 1).coerceAtMost(availableCars.size)} / ${availableCars.size}",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
                             ),
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .clickable { handlePrevious() }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = stringResource(R.string.back_desc),
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant
-                            )
-                        ) {
-                            Text(
-                                text = "${(popularListState.firstVisibleItemIndex + 1).coerceAtMost(availableCars.size)} / ${availableCars.size}",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant
-                            ),
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .clickable { handleNext() }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = stringResource(R.string.next_button),
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Car List Container with Left (Back) and Right (Next) Arrow buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                // Full-width Horizontal Swipeable vehicle cards
+                LazyRow(
+                    state = popularListState,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(end = 8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface,
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        ),
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .clickable { handlePrevious() }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back_desc),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        LazyRow(
-                            state = popularListState,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            contentPadding = PaddingValues(end = 8.dp)
-                        ) {
-                            items(availableCars, key = { it.id }) { car ->
-                                PopularCarCard(
-                                    car = car,
-                                    isFavourite = favourites.contains(car.id),
-                                    isDarkMode = isDarkMode,
-                                    isLandscape = isLandscape,
-                                    onToggleFavourite = { onToggleFavourite(car.id) },
-                                    onRentClick = { onRentClick(car) }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface,
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        ),
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .clickable { handleNext() }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = stringResource(R.string.next_button),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Bottom Navigation Buttons with Explicit "Next Car" Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = handlePrevious,
-                        shape = RoundedCornerShape(10.dp),
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        ),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(R.string.back_desc),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                        )
-                    }
-
-                    Button(
-                        onClick = handleNext,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.next_button),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                    items(availableCars, key = { it.id }) { car ->
+                        PopularCarCard(
+                            car = car,
+                            isFavourite = favourites.contains(car.id),
+                            isDarkMode = isDarkMode,
+                            isLandscape = isLandscape,
+                            onToggleFavourite = { onToggleFavourite(car.id) },
+                            onRentClick = { onRentClick(car) }
                         )
                     }
                 }
