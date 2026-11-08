@@ -97,6 +97,7 @@ import com.example.myapplication.ui.components.SectionTitle
 import com.example.myapplication.ui.components.StarRatingBar
 import com.example.myapplication.ui.components.outlineBorder
 import com.example.myapplication.ui.theme.AccentFavorite
+import com.example.myapplication.ui.theme.AppTextStyles
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 /**
@@ -442,10 +443,7 @@ fun AccountCreditBalanceCard(
             OutlinedBadge {
                 Text(
                     text = stringResource(R.string.cars_ready_format, availableCarsCount),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    ),
+                    style = AppTextStyles.BadgeLabel,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
@@ -1043,7 +1041,7 @@ private fun CarSpecRow(icon: ImageVector, text: String) {
         )
         Text(
             text = text,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+            style = AppTextStyles.Caption,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }

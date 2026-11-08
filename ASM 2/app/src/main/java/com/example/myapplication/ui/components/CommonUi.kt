@@ -7,10 +7,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.ui.theme.AppTextStyles
 
 /**
  * Thin 1dp outline used by cards, badges and outlined buttons across both screens.
@@ -30,11 +30,7 @@ fun SectionTitle(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = fontSize,
-            letterSpacing = (-0.3).sp
-        ),
+        style = AppTextStyles.SectionTitle.copy(fontSize = fontSize),
         color = MaterialTheme.colorScheme.onBackground,
         modifier = modifier
     )

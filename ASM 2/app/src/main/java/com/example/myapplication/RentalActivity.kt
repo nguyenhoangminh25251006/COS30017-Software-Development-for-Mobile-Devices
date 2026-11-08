@@ -72,6 +72,7 @@ import com.example.myapplication.ui.components.OutlinedBadge
 import com.example.myapplication.ui.components.StarRatingBar
 import com.example.myapplication.ui.components.outlineBorder
 import com.example.myapplication.ui.theme.AccentError
+import com.example.myapplication.ui.theme.AppTextStyles
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import kotlin.math.roundToInt
 
@@ -343,10 +344,7 @@ fun VehicleSummaryCard(
                 OutlinedBadge {
                     Text(
                         text = "${car.year}",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
-                        ),
+                        style = AppTextStyles.BadgeLabel,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
@@ -410,10 +408,7 @@ fun DurationPricingCard(
             ) {
                 Text(
                     text = stringResource(R.string.rental_duration_title),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    ),
+                    style = AppTextStyles.SectionTitle.copy(fontSize = 16.sp),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Surface(
@@ -426,10 +421,7 @@ fun DurationPricingCard(
                         } else {
                             stringResource(R.string.duration_days_format, rentalDays)
                         },
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        ),
+                        style = AppTextStyles.BadgeLabel.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
@@ -459,12 +451,12 @@ fun DurationPricingCard(
             ) {
                 Text(
                     text = stringResource(R.string.slider_min_days),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                    style = AppTextStyles.Caption,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = stringResource(R.string.slider_max_days),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                    style = AppTextStyles.Caption,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -482,7 +474,7 @@ fun DurationPricingCard(
                 Column {
                     Text(
                         text = stringResource(R.string.current_balance_label),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        style = AppTextStyles.Caption,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(2.dp))
@@ -499,7 +491,7 @@ fun DurationPricingCard(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = stringResource(R.string.total_cost_label),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        style = AppTextStyles.Caption,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(2.dp))
