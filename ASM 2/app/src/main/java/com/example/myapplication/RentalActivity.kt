@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +48,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -67,9 +68,12 @@ import com.example.myapplication.domain.CarRentalDomain
 import com.example.myapplication.domain.ValidationResult
 import com.example.myapplication.model.Car
 import com.example.myapplication.ui.components.AppLocaleProvider
+import com.example.myapplication.ui.components.OutlinedBadge
 import com.example.myapplication.ui.components.StarRatingBar
+import com.example.myapplication.ui.components.outlineBorder
 import com.example.myapplication.ui.theme.AccentError
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import kotlin.math.roundToInt
 
 /**
  * Activity 2: Rental Details & Booking Confirmation.
@@ -91,7 +95,7 @@ class RentalActivity : ComponentActivity() {
             intent.getParcelableExtra(EXTRA_CAR)
         }
 
-        val creditBalance = intent.getIntExtra(EXTRA_CREDIT_BALANCE, 500)
+        val creditBalance = intent.getIntExtra(EXTRA_CREDIT_BALANCE, CarRentalDomain.INITIAL_CREDIT_BALANCE)
         val isDarkMode = intent.getBooleanExtra(EXTRA_IS_DARK_MODE, false)
         val appLanguage = intent.getStringExtra(EXTRA_LANGUAGE) ?: "en"
 
@@ -158,38 +162,46 @@ fun RentalScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // Use rememberSaveable to persist user input across screen rotation / configuration change
-    var rentalDaysFloat by rememberSaveable { mutableFloatStateOf(1f) }
-    val rentalDays = rentalDaysFloat.toInt()
+    var rentalDays by rememberSaveable { mutableIntStateOf(CarRentalDomain.MIN_RENTAL_DAYS) }
     val totalCost = CarRentalDomain.calculateTotalCost(car.dailyCost, rentalDays)
 
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     val handleConfirmBooking: () -> Unit = {
-        val validation = CarRentalDomain.validateRental(
-            car = car,
-            rentalDays = rentalDays,
-            currentBalance = creditBalance
-        )
-        when (validation) {
+        when (val validation = CarRentalDomain.validateRental(car, rentalDays, creditBalance)) {
             is ValidationResult.Success -> {
                 errorMessage = null
                 onSaveBooking(rentalDays, totalCost)
             }
             is ValidationResult.Error -> {
-                errorMessage = if (validation.messageResId != 0) {
-                    if (validation.formatArgs.isNotEmpty()) {
-                        context.getString(
-                            validation.messageResId,
-                            *validation.formatArgs.toTypedArray()
-                        )
-                    } else {
-                        context.getString(validation.messageResId)
-                    }
-                } else {
-                    validation.message
-                }
+                errorMessage = context.getString(
+                    validation.messageResId,
+                    *validation.formatArgs.toTypedArray()
+                )
             }
         }
+    }
+
+    // Slider, cost breakdown, error banner and buttons are shared by both orientations
+    val bookingControls: @Composable () -> Unit = {
+        DurationPricingCard(
+            rentalDays = rentalDays,
+            onDaysChange = {
+                rentalDays = it
+                errorMessage = null
+            },
+            creditBalance = creditBalance,
+            totalCost = totalCost
+        )
+
+        errorMessage?.let { error ->
+            ValidationErrorBanner(error = error)
+        }
+
+        RentalActionButtons(
+            onCancel = onCancel,
+            onConfirm = handleConfirmBooking
+        )
     }
 
     Scaffold(
@@ -236,11 +248,9 @@ fun RentalScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
                     VehicleSummaryCard(car = car, imageHeight = 140.dp)
-                    Spacer(modifier = Modifier.height(10.dp))
                 }
 
                 // Right Column: Rental Duration Slider, Cost Breakdown, Error, & Buttons
@@ -251,26 +261,7 @@ fun RentalScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    DurationPricingCard(
-                        rentalDays = rentalDays,
-                        rentalDaysFloat = rentalDaysFloat,
-                        onDaysChange = {
-                            rentalDaysFloat = it
-                            errorMessage = null
-                        },
-                        creditBalance = creditBalance,
-                        totalCost = totalCost
-                    )
-
-                    errorMessage?.let { error ->
-                        ValidationErrorBanner(error = error)
-                    }
-
-                    RentalActionButtons(
-                        onCancel = onCancel,
-                        onConfirm = handleConfirmBooking
-                    )
-
+                    bookingControls()
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
@@ -285,29 +276,7 @@ fun RentalScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 VehicleSummaryCard(car = car, imageHeight = 200.dp)
-
-                DurationPricingCard(
-                    rentalDays = rentalDays,
-                    rentalDaysFloat = rentalDaysFloat,
-                    onDaysChange = {
-                        rentalDaysFloat = it
-                        errorMessage = null
-                    },
-                    creditBalance = creditBalance,
-                    totalCost = totalCost
-                )
-
-                errorMessage?.let { error ->
-                    ValidationErrorBanner(error = error)
-                }
-
-                Spacer(modifier = Modifier.weight(1f, fill = false))
-
-                RentalActionButtons(
-                    onCancel = onCancel,
-                    onConfirm = handleConfirmBooking
-                )
-
+                bookingControls()
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -329,10 +298,7 @@ fun VehicleSummaryCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        ),
+        border = outlineBorder(),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -374,14 +340,7 @@ fun VehicleSummaryCard(
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = androidx.compose.foundation.BorderStroke(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-                ) {
+                OutlinedBadge {
                     Text(
                         text = "${car.year}",
                         style = MaterialTheme.typography.labelMedium.copy(
@@ -429,8 +388,7 @@ fun VehicleSummaryCard(
 @Composable
 fun DurationPricingCard(
     rentalDays: Int,
-    rentalDaysFloat: Float,
-    onDaysChange: (Float) -> Unit,
+    onDaysChange: (Int) -> Unit,
     creditBalance: Int,
     totalCost: Int,
     modifier: Modifier = Modifier
@@ -441,10 +399,7 @@ fun DurationPricingCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        ),
+        border = outlineBorder(),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
@@ -485,10 +440,11 @@ fun DurationPricingCard(
 
             // Native Slider widget for selecting rental duration from 1 to 7 days
             Slider(
-                value = rentalDaysFloat,
-                onValueChange = onDaysChange,
-                valueRange = 1f..7f,
-                steps = 5, // Creates discrete steps at 1, 2, 3, 4, 5, 6, 7 days
+                value = rentalDays.toFloat(),
+                onValueChange = { onDaysChange(it.roundToInt()) },
+                valueRange = CarRentalDomain.MIN_RENTAL_DAYS.toFloat()..CarRentalDomain.MAX_RENTAL_DAYS.toFloat(),
+                // Discrete stops at every whole day (1..7 → 5 intermediate steps)
+                steps = CarRentalDomain.MAX_RENTAL_DAYS - CarRentalDomain.MIN_RENTAL_DAYS - 1,
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(
                     thumbColor = MaterialTheme.colorScheme.primary,
@@ -553,7 +509,7 @@ fun DurationPricingCard(
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
                         ),
-                        color = if (totalCost > 400 || totalCost > creditBalance) {
+                        color = if (totalCost > CarRentalDomain.MAX_RENTAL_COST || totalCost > creditBalance) {
                             AccentError
                         } else {
                             MaterialTheme.colorScheme.onSurface
@@ -579,7 +535,7 @@ fun ValidationErrorBanner(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             width = 1.dp,
             color = AccentError.copy(alpha = 0.5f)
         )
@@ -626,10 +582,7 @@ fun RentalActionButtons(
                 .weight(1f)
                 .height(48.dp),
             shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant
-            ),
+            border = outlineBorder(),
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = MaterialTheme.colorScheme.onSurface
             )

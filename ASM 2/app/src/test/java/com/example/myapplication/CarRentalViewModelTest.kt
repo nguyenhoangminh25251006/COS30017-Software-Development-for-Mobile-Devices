@@ -48,8 +48,8 @@ class CarRentalViewModelTest {
         assertEquals(0, viewModel.currentCarIndex.value)
         viewModel.setCurrentCarIndex(2)
         assertEquals(2, viewModel.currentCarIndex.value)
-        val car = viewModel.currentCar.value
-        assertEquals(viewModel.availableCars.value[2].id, car?.id)
+        val car = viewModel.availableCars.value[viewModel.currentCarIndex.value]
+        assertEquals(viewModel.availableCars.value[2].id, car.id)
     }
 
     @Test

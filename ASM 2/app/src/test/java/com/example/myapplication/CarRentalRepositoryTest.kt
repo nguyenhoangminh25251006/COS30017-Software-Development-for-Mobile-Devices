@@ -4,8 +4,6 @@ import com.example.myapplication.data.CarRentalRepository
 import com.example.myapplication.domain.ValidationResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -86,7 +84,7 @@ class CarRentalRepositoryTest {
 
         // Add to favourites
         repository.toggleFavourite(car.id)
-        assertTrue(repository.isFavourite(car.id))
+        assertTrue(car.id in repository.favourites.value)
         assertEquals(1, repository.getFavouriteCars().size)
 
         // Rent the car
@@ -96,7 +94,7 @@ class CarRentalRepositoryTest {
         assertFalse(repository.getAvailableCars().any { it.id == car.id })
 
         // BUT car remains in favourites
-        assertTrue(repository.isFavourite(car.id))
+        assertTrue(car.id in repository.favourites.value)
         assertEquals(1, repository.getFavouriteCars().size)
     }
 
@@ -111,7 +109,7 @@ class CarRentalRepositoryTest {
 
         // Return the car
         val returned = repository.returnRentedCar(car.id)
-        assertTrue(returned)
+        assertEquals(car.id, returned?.car?.id)
 
         // Balance refunded back to 500
         assertEquals(500, repository.creditBalance.value)
@@ -123,12 +121,9 @@ class CarRentalRepositoryTest {
 
     @Test
     fun testNextCarNavigation() {
-        val initialCar = repository.getCurrentCar()
-        assertNotNull(initialCar)
+        assertEquals(0, repository.currentCarIndex.value)
 
         repository.nextCar()
-        val secondCar = repository.getCurrentCar()
-        assertNotNull(secondCar)
 
         // Advanced to next index
         assertEquals(1, repository.currentCarIndex.value)

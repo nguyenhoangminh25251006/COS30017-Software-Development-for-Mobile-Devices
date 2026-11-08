@@ -106,8 +106,6 @@ class CarRentalRepository {
         )
     )
 
-    private val _canonicalCars = sampleCars.toList()
-
     private val _creditBalance = MutableStateFlow(CarRentalDomain.INITIAL_CREDIT_BALANCE)
     val creditBalance: StateFlow<Int> = _creditBalance.asStateFlow()
 
@@ -132,30 +130,22 @@ class CarRentalRepository {
     private val _availableCars = MutableStateFlow<List<Car>>(emptyList())
     val availableCars: StateFlow<List<Car>> = _availableCars.asStateFlow()
 
-    private val _currentCar = MutableStateFlow<Car?>(null)
-    val currentCar: StateFlow<Car?> = _currentCar.asStateFlow()
-
     init {
         updateComputedCars()
         updateFavouriteCars()
     }
 
+    /**
+     * Recomputes the available list and keeps the current index inside its bounds.
+     */
     private fun updateComputedCars() {
         val available = getAvailableCars()
         _availableCars.value = available
-        if (available.isEmpty()) {
-            _currentCarIndex.value = 0
-            _currentCar.value = null
-        } else {
-            val validIndex = _currentCarIndex.value.coerceIn(0, available.size - 1)
-            _currentCarIndex.value = validIndex
-            _currentCar.value = available[validIndex]
-        }
+        _currentCarIndex.value = _currentCarIndex.value.coerceIn(0, (available.size - 1).coerceAtLeast(0))
     }
 
     private fun updateFavouriteCars() {
-        val favSet = _favourites.value
-        _favouriteCars.value = _canonicalCars.filter { it.id in favSet }
+        _favouriteCars.value = getFavouriteCars()
     }
 
     /**
@@ -164,7 +154,7 @@ class CarRentalRepository {
     fun getAvailableCars(): List<Car> {
         val rentedIds = _rentedBookings.value.map { it.car.id }.toSet()
         return CarRentalDomain.getAvailableCars(
-            allCars = _canonicalCars,
+            allCars = sampleCars,
             rentedCarIds = rentedIds,
             searchQuery = _searchQuery.value,
             sortOption = _sortOption.value
@@ -172,43 +162,11 @@ class CarRentalRepository {
     }
 
     /**
-     * Gets the currently displayed car, or null if no cars are available.
-     */
-    fun getCurrentCar(): Car? {
-        val available = getAvailableCars()
-        if (available.isEmpty()) return null
-        val index = _currentCarIndex.value.coerceIn(0, available.size - 1)
-        return available[index]
-    }
-
-    /**
      * Advances to the next available car in the list (cycling).
      */
     fun nextCar() {
-        val available = getAvailableCars()
-        if (available.isEmpty()) {
-            _currentCarIndex.value = 0
-            _currentCar.value = null
-            return
-        }
-        val nextIndex = (_currentCarIndex.value + 1) % available.size
-        _currentCarIndex.value = nextIndex
-        _currentCar.value = available[nextIndex]
-    }
-
-    /**
-     * Navigates back to the previous available car in the list (cycling).
-     */
-    fun previousCar() {
-        val available = getAvailableCars()
-        if (available.isEmpty()) {
-            _currentCarIndex.value = 0
-            _currentCar.value = null
-            return
-        }
-        val prevIndex = if (_currentCarIndex.value - 1 < 0) available.size - 1 else _currentCarIndex.value - 1
-        _currentCarIndex.value = prevIndex
-        _currentCar.value = available[prevIndex]
+        val size = _availableCars.value.size
+        _currentCarIndex.value = if (size == 0) 0 else (_currentCarIndex.value + 1) % size
     }
 
     /**
@@ -216,11 +174,9 @@ class CarRentalRepository {
      * ensuring state persists across screen orientation changes.
      */
     fun setCurrentCarIndex(index: Int) {
-        val available = getAvailableCars()
-        if (available.isNotEmpty()) {
-            val validIndex = index.coerceIn(0, available.size - 1)
-            _currentCarIndex.value = validIndex
-            _currentCar.value = available[validIndex]
+        val lastIndex = _availableCars.value.lastIndex
+        if (lastIndex >= 0) {
+            _currentCarIndex.value = index.coerceIn(0, lastIndex)
         }
     }
 
@@ -246,21 +202,9 @@ class CarRentalRepository {
      * Toggles favourite status for a given car ID.
      */
     fun toggleFavourite(carId: String) {
-        val current = _favourites.value.toMutableSet()
-        if (current.contains(carId)) {
-            current.remove(carId)
-        } else {
-            current.add(carId)
-        }
-        _favourites.value = current
+        val current = _favourites.value
+        _favourites.value = if (carId in current) current - carId else current + carId
         updateFavouriteCars()
-    }
-
-    /**
-     * Returns true if carId is marked as favourite.
-     */
-    fun isFavourite(carId: String): Boolean {
-        return _favourites.value.contains(carId)
     }
 
     /**
@@ -268,7 +212,7 @@ class CarRentalRepository {
      */
     fun getFavouriteCars(): List<Car> {
         val favSet = _favourites.value
-        return _canonicalCars.filter { it.id in favSet }
+        return sampleCars.filter { it.id in favSet }
     }
 
     /**
@@ -287,8 +231,7 @@ class CarRentalRepository {
         if (validation is ValidationResult.Success) {
             val totalCost = CarRentalDomain.calculateTotalCost(car.dailyCost, rentalDays)
             _creditBalance.value -= totalCost
-            val booking = RentalBooking(car, rentalDays, totalCost)
-            _rentedBookings.value = _rentedBookings.value + booking
+            _rentedBookings.value = _rentedBookings.value + RentalBooking(car, rentalDays, totalCost)
             _currentCarIndex.value = 0 // Reset index for remaining available cars
             updateComputedCars()
         }
@@ -298,13 +241,15 @@ class CarRentalRepository {
     /**
      * Returns a rented car back to availability and refunds the rental credits.
      * Fulfills reversal of committed booking requirement.
+     *
+     * @return the returned booking, or null if the car was not rented.
      */
-    fun returnRentedCar(carId: String): Boolean {
-        val booking = _rentedBookings.value.find { it.car.id == carId } ?: return false
-        _rentedBookings.value = _rentedBookings.value.filterNot { it.car.id == carId }
+    fun returnRentedCar(carId: String): RentalBooking? {
+        val booking = _rentedBookings.value.find { it.car.id == carId } ?: return null
+        _rentedBookings.value = _rentedBookings.value - booking
         _creditBalance.value += booking.totalCost
         updateComputedCars()
-        return true
+        return booking
     }
 
     /**
